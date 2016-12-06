@@ -1,0 +1,120 @@
+﻿<!--
+//////////////////////////////////////////////////////////////////////////////////
+//
+// JSDraw.Lite
+// Copyright (C) 2016 Scilligence Corporation
+// http://www.scilligence.com/
+//
+// (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
+//
+//////////////////////////////////////////////////////////////////////////////////
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>JSDraw.Lite - A Javascript Chemical Structure Editor/Viewer</title>
+
+    <script type='text/javascript't src="//ajax.googleapis.com/ajax/libs/dojo/1.11.2/dojo/dojo.js"></script>
+
+    <script type='text/javascript' src='src/Core.js'></script>
+    <script type='text/javascript' src='src/Utils.js'></script>
+    <script type='text/javascript' src='src/JSDraw.Core.js'></script>
+    <script type='text/javascript' src='src/JSDraw.Lite.js'></script>
+    <script type='text/javascript' src='src/PT.Lite.js'></script>
+
+    <script type='text/javascript' src='src/Atom.js'></script>
+    <script type='text/javascript' src='src/BA.js'></script>
+    <script type='text/javascript' src='src/Base64.js'></script>
+    <script type='text/javascript' src='src/Bond.js'></script>
+    <script type='text/javascript' src='src/JSDrawIO.js'></script>
+    <script type='text/javascript' src='src/Mol.js'></script>
+    <script type='text/javascript' src='src/Point.js'></script>
+    <script type='text/javascript' src='src/Rect.js'></script>
+    <script type='text/javascript' src='src/Stack.js'></script>
+    <script type='text/javascript' src='src/SuperAtoms.js'></script>
+    <script type='text/javascript' src='src/FormulaParser.js'></script>
+    <script type='text/javascript' src='src/Toolbar.js'></script>
+    <script type='text/javascript' src='src/Lasso.js'></script>
+    <script type='text/javascript' src='src/Drawer.js'></script>
+    <script type='text/javascript' src='src/Language.js'></script>
+    <script type='text/javascript' src='src/IDGenerator.js'></script>
+    <script type='text/javascript' src='src/Skin.js'></script>
+    <script type='text/javascript' src='src/JSDraw.Editor.js'></script>
+    <script type='text/javascript' src='src/JSDraw.Table.js'></script>
+
+    <script type='text/javascript' src='form/App.Lite.js'></script>
+    <script type='text/javascript' src='form/Lang.js'></script>
+    <script type='text/javascript' src='form/Menu.js'></script>
+    <script type='text/javascript' src='form/ContextMenu.js'></script>
+    <script type='text/javascript' src='form/Dialog.js'></script>
+    <script type='text/javascript' src='form/Form.js'></script>
+    <script type='text/javascript' src='form/AutoComplete.js'></script>
+    <script type='text/javascript' src='form/Table.js'></script>
+    <script type='text/javascript' src='form/Tree.js'></script>
+    <script type='text/javascript' src='form/DropdownInput.js'></script>
+    <script type='text/javascript' src='form/Popup.js'></script>
+    <script type='text/javascript' src='form/UploadFile.js'></script>
+    <script type='text/javascript' src='form/Tab.js'></script>
+    <script type='text/javascript' src='form/TabbedForm.js'></script>
+    <script type='text/javascript' src='form/FieldNumber.js'></script>
+    <script type='text/javascript' src='form/Chart.js'></script>
+    <script type='text/javascript' src='form/Clipboard.js'></script>
+    <script type='text/javascript' src='form/Accordion.js'></script>
+    <script type='text/javascript' src='form/DnD.js'></script>
+    <script type='text/javascript' src='form/Resizable.js'></script>
+    <script type='text/javascript' src='form/Favorite.js'></script>
+    <script type='text/javascript' src='form/DropdownButton.js'></script>
+
+    <script type='text/javascript' src='page/Page.js'></script>
+    <script type='text/javascript' src='page/Page.Custom.js'></script>
+    <script type='text/javascript' src='page/Page.Explorer.js'></script>
+    <script type='text/javascript' src='page/Page.ExplorerForm.js'></script>
+    <script type='text/javascript' src='page/Page.Form.js'></script>
+    <script type='text/javascript' src='page/Page.Tab.js'></script>
+    <script type='text/javascript' src='page/Page.Table.js'></script>
+    <script type='text/javascript' src='page/Page.Tree.js'></script>
+
+    <script type='text/javascript' src='Scilligence.JSDraw2.Resources.js'></script>
+
+</head>
+<body style="font-family:Arial; margin: 0">
+
+    <div id='Div1' ></div>
+    MW:<input id='mw' />  
+    MF:<input id='mf' /><br />
+
+    <button onclick='getMolWeight()'>getMolWeight</button>
+    <button onclick='getMolfile()'>getMolfile</button>
+    <button onclick='setMolfile()'>setMolfile</button>
+    <br /><textarea id='v' cols=80 rows=10></textarea>
+
+    <script type="text/javascript">
+
+        var jsd = null;
+        JSDraw2.defaultoptions = { xdraw: "jdraw", popupwidth: '70%', popupheight: '70%', popupxdraw: false, jdrawpath: null, monocolor: false };
+        scil.ready(function () {
+            jsd = new JSDraw("Div1", { skin: "w8", fullscreen: true, inktools: false, width: 900, height: 450, ondatachange: ondatachange });
+        });
+
+        function ondatachange(jsd) {
+            scil.byId("mw").value = jsd.getMolWeight();
+            scil.byId("mf").value = jsd.getFormula();
+        }
+
+        function getMolWeight() {
+            var m = JSDraw.get("Div1").m.clone();
+            dojo.byId('v').value = JSDraw.get("Div1").getMolWeight();
+        }
+
+        function getMolfile() {
+            dojo.byId('v').value = JSDraw.get("Div1").getMolfile();
+        }
+
+        function setMolfile() {
+            JSDraw.get("Div1").setMolfile(dojo.byId('v').value);
+        }
+    </script>
+
+</body>
+</html>
