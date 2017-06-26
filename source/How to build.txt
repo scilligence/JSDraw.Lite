@@ -1,7 +1,10 @@
 How to build JSDraw.Lite for publish?
 
-1. Run windows batch file .\web\_merge.lite.bat, it will combine all js source file in .\web\src\ folder into one js file: _merge.lite.js
+1. Run windows batch file .\web\_merge.lite.bat, it will combine all js source files
+in .\web\src\ folder into one js file: _merge.lite.js
 
-2. You can simple rename _merge.lite.js into Scilligence.JSDraw2.Lite.js, and use this uncompressed version.  Or you can use any javascript compressing tool (google "javascript compress") to make a smaller size to save some network traffic.
+2. You can simple rename _merge.lite.js into Scilligence.JSDraw2.Lite.js, and use this
+uncompressed version.  Or you can use any javascript compressing tool (google
+"javascript compress") to make a smaller size to save some network traffic.
 
 3. Scilligence.JSDraw2.Resources.js contains all image icons used by JSDraw Lite.
