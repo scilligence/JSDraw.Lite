@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -31,6 +31,12 @@ scil.Page.Table = scil.extend(scil._base, {
         }
         if (this.options.buttons != null)
             buttons = buttons.concat(this.options.buttons);
+
+        if (this.options.columnhidable) {
+            buttons.push("-");
+            buttons.push({ src: scil.App.imgSmall("columns.png"), title: "Show/Hide Columns", onclick: function () { me.table.showHideColumns(); } });
+        }
+
         this.form = new scil.Page.ExplorerForm(parent, { expandable: options.expandable, caption: options.caption, visible: options.visible, marginBottom: options.marginBottom, buttons: buttons, expanded: this.options.expanded, onexpand: this.options.onexpand });
         this.form.host = this;
         this.pages = scil.Utils.createElement(this.form.div, "div");
@@ -89,21 +95,25 @@ scil.Page.Table = scil.extend(scil._base, {
     loadPage: function (page) {
         if (this.args == null)
             this.args = {};
-        this.args.page = page;
         if (this.options.onloadpage != null)
             this.options.onloadpage(this.args, page, this);
-        this.refresh();
+        this.refresh(null, null, null, page);
     },
 
     list: function (ret) {
         var me = this;
+        if (ret == null)
+            ret = {};
         this.table.setData(ret.rows == null ? ret : ret.rows);
         scil.Table.listPages(this.pages, ret.page, ret.pages, function (page) { me.loadPage(page); });
     },
 
-    refresh: function (from, args, selectfirstrow) {
+    refresh: function (from, args, selectfirstrow, page) {
         if (args != null)
             this.args = args;
+        if (this.args == null)
+            this.args = {};
+        this.args.page = page;
 
         if (!this.form.isVisible() || !this.form.isExpanded()) {
             this.refreshneeded = true;
@@ -120,7 +130,8 @@ scil.Page.Table = scil.extend(scil._base, {
         if (me.options.onbeforerefresh != null)
             me.options.onbeforerefresh(params);
 
-        scil.Utils.ajax(this.page.url + this.options.object + ".list", function (ret) {
+        var fun = this.options.jsonp ? scil.Utils.jsonp : scil.Utils.ajax;
+        fun(this.page.url + this.options.object + ".list", function (ret) {
             if (me.options.onbeforelisting != null)
                 me.options.onbeforelisting(ret, me);
 
@@ -144,6 +155,11 @@ scil.Page.Table = scil.extend(scil._base, {
     add: function (values) {
         if (this.options.onAddNew != null && this.options.onAddNew(this.args) == false)
             return;
+
+        this.add2(values);
+    },
+
+    add2: function (values) {
         this.create();
         this.dlg.show();
         if (this.options.usetabs)
@@ -159,6 +175,24 @@ scil.Page.Table = scil.extend(scil._base, {
             this.options.onloaddata(data, this.args, this.dlg);
         this.dlg.form.setData(data);
         this.dlg.editkey = null;
+
+        this.showDelButton(false);
+    },
+
+    copyNew: function (key) {
+        if (key == null) {
+            for (var k in this.options.fields) {
+                if (this.options.fields[k].iskey) {
+                    key = k;
+                    break;
+                }
+            }
+        }
+        if (key == null)
+            return;
+
+        var me = this;
+        this.edit(function (ret) { ret[key] = " "; me.dlg.editkey = null; });
     },
 
     edit: function (onsetdata) {
@@ -167,7 +201,8 @@ scil.Page.Table = scil.extend(scil._base, {
             return;
         }
 
-        this.add();
+        this.add2();
+        this.showDelButton(true);
 
         var me = this;
         var data = {};
@@ -200,7 +235,17 @@ scil.Page.Table = scil.extend(scil._base, {
             scil.apply(data, this.args);
     },
 
+    cancel: function () {
+        if (this.dlg != null)
+            this.dlg.hide();
+    },
+
     save: function () {
+        if (this.dlg.form.checkRequiredFields() > 0) {
+            scil.Utils.alert("Some required field(s) are blank");
+            return;
+        }
+
         var me = this;
         var data = this.dlg.form.getData();
         if (this.options.savedoc)
@@ -223,6 +268,9 @@ scil.Page.Table = scil.extend(scil._base, {
             else {
                 me.refresh();
             }
+
+            if (me.options.onaftersave)
+                me.options.onaftersave(ret, me);
         }, data, { showprogress: true });
     },
 
@@ -237,14 +285,29 @@ scil.Page.Table = scil.extend(scil._base, {
         });
     },
 
+    showDelButton: function (f) {
+        if (this.dlg == null)
+            return;
+
+        for (var i = 0; i < this.dlg.form.buttons.length; ++i) {
+            var b = this.dlg.form.buttons[i];
+            if (b != null && b.getAttribute("key") == "delete") {
+                b.style.display = f ? "" : "none";
+                break;
+            }
+        }
+    },
+
     create: function () {
         if (this.dlg != null)
             return;
 
         var me = this;
-        var buttons = [{ src: scil.App.imgSmall("submit.png"), label: "Save", onclick: function () { me.save(); } }];
+        var buttons = [{ src: scil.App.imgSmall("submit.png"), label: "Save", key: "save", onclick: function () { me.save(); } }];
         if (this.options.candelete != false)
-            buttons.push({ src: scil.App.imgSmall("del.png"), label: "Delete", onclick: function () { me.del(); } });
+            buttons.push({ src: scil.App.imgSmall("del.png"), label: "Delete", key: "delete", onclick: function () { me.del(); } });
+        buttons.push({ src: scil.App.imgSmall("cancel.png"), label: "Cancel", key: "cancel", onclick: function () { me.cancel(); } });
+
         if (this.options.usetabs) {
             this.dlg = scil.Form.createTabDlgForm(this.options.formcaption, { tabs: this.options.fields, buttons: buttons, border: true, onchange: this.options.onformdatachange });
         }

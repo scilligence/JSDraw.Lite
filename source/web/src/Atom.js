@@ -54,6 +54,7 @@ JSDraw2.Atom = scil.extend(scil._base, {
         this.rgroup = null;
         this.bio = bio;
         this.locked = false;
+        this.hidden = null;
         this._rect = null;
         if (bio == null) {
             if (elem == null || elem.length == 0) {
@@ -107,7 +108,12 @@ JSDraw2.Atom = scil.extend(scil._base, {
         a.val = this.val;
         if (this.query != null)
             a.query = scil.clone(this.query);
+        if (this.bio != null)
+            a.bio = scil.clone(this.bio);
         a.locked = this.locked;
+        a.hidden = this.hidden;
+        a.ratio = this.ratio;
+        a.selected = this.selected;
         return a;
     },
 
@@ -195,6 +201,8 @@ JSDraw2.Atom = scil.extend(scil._base, {
                 s += " ann='" + scil.Utils.escXmlValue(this.bio.annotation) + "'";
             if (this.elem == "?" && !scil.Utils.isNullOrEmpty(this.bio.ambiguity))
                 s += " amb='" + scil.Utils.escXmlValue(this.bio.ambiguity) + "'";
+            if (this.biotype() == org.helm.webeditor.HELM.BLOB && !scil.Utils.isNullOrEmpty(this.bio.blobtype))
+                s += " blobtype='" + scil.Utils.escXmlValue(this.bio.blobtype) + "'";
         }
 
         if (this.rgroup == null && this.superatom == null) {
@@ -312,6 +320,10 @@ JSDraw2.Atom = scil.extend(scil._base, {
             var amb = e.getAttribute("amb");
             if (this.elem == "?" && !scil.Utils.isNullOrEmpty(amb))
                 this.bio.ambiguity = amb;
+
+            var blobtype = e.getAttribute("blobtype");
+            if (this.biotype() == org.helm.webeditor.HELM.BLOB && !scil.Utils.isNullOrEmpty(blobtype))
+                this.bio.blobtype = blobtype;
         }
 
         if (this.elem != null) {

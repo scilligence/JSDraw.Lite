@@ -55,9 +55,9 @@ scil.FieldNumber = scil.extend(scil._base, {
         var me = this;
         scil.connect(input, "onchange", function (e) {
             var s = input.value;
-            if (s != "" && s != null && !scil.Utils.isNumber(s, me.options.allowoperator)) {
-                scil.Utils.alert("A number is required!");
+            if (s != "" && s != null && (me.options.accepts == null || !new RegExp(me.options.accepts).test(s)) && !scil.Utils.isNumber(s, me.options.allowoperator)) {
                 input.value = "";
+                scil.Utils.alert("A number is required!");
             }
             else {
                 if (me.unit != null)
@@ -68,7 +68,12 @@ scil.FieldNumber = scil.extend(scil._base, {
 
         if (!viewonly && this.options.mobiledata != null) {
             var me = this;
-            new scil.MobileData(input, { category: this.options.mobiledata, weighstation: true, url: scil.MobileData.getDefaultUrl(true), onresult: function (ret) { me.setValue(ret.barcode); return true; } });
+            new scil.MobileData(input, { weighstation: true, url: scil.MobileData.getDefaultUrl(true), onresult: function (ret) {
+                me.setValue(ret.barcode);
+                scil.MobileData.markRecieved(input);
+                return true;
+            } 
+            });
             scil.Utils.createButton(scil.Utils.createElement(tr, "td"), { label: "&#9878;", title: "Select Weigh Station", type: "a", onclick: function () { scil.MobileData.selectWeighstation(); } });
         }
     },

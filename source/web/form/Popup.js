@@ -211,7 +211,7 @@ scil.apply(scil.Popup, {
         this.div.style.borderColor = "#f0f0f0 #a0a0a0 #a0a0a0 #f0f0f0";
         this.div.style.borderWidth = "2px";
         this.div.style.position = "absolute";
-        this.div.style.zIndex = "99999";
+        this.div.style.zIndex = scil.Utils.getMaxZindex();
         this.div.style.textAlign = "left";
         document.body.appendChild(this.div);
 
@@ -222,8 +222,8 @@ scil.apply(scil.Popup, {
 
         this.title = document.createElement("div");
         this.title.style.textAlign = "center";
-        this.title.style.border = "1px solid blue";
-        this.title.style.backgroundColor = "blue";
+        this.title.style.border = JSDraw2.Skin.dialog.border;
+        this.title.style.backgroundColor = JSDraw2.Skin.dialog.bkcolor;
         this.title.style.color = "white";
         div.appendChild(this.title);
 

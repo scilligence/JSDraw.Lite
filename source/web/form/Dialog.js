@@ -122,6 +122,8 @@ scil.Dialog = scil.extend(scil._base, {
             this.dialogmask.style.display = "none";
         }
 
+        this.dialog.style.borderColor = modal ? "#fff" : JSDraw2.Skin.dialog.bkcolor;
+
         if (scilligence.Utils.isTouch || immediately) {
             dojo.style(this.dialog, { display: "", opacity: 1.00, filter: 'alpha(opacity=100)' });
         }
@@ -207,13 +209,17 @@ scil.Dialog = scil.extend(scil._base, {
         if (w > 0 || h > 0)
             scil.apply(style, { width: w > 0 ? w : null, height: h > 0 ? h : null, overflow: "scroll" });
 
+        if (this.options.bodystyle != null)
+            scil.apply(style, this.options.bodystyle);
+
         var div = scil.Utils.createElement(td, "div", null, style);
         if (typeof this.body == "string")
             div.innerHTML = "<div>" + this.body + "</div>";
         else
             div.appendChild(this.body);
 
-        this.dialogmask = scilligence.Utils.createElement(topBody, 'div', null, { position: "absolute", top: "0", left: "0", minHeight: "100%", height: "100%", width: "100%", background: "#999", opacity: ".75", filter: "alpha(opacity=75)", zIndex: zi - 1 });
+        var opacity = this.options.opacity > 0 ? this.options.opacity : 75;
+        this.dialogmask = scilligence.Utils.createElement(topBody, 'div', null, { position: "absolute", top: "0", left: "0", minHeight: "100%", height: "100%", width: "100%", background: "#999", opacity: opacity / 100.0, filter: "alpha(opacity=" + opacity + ")", zIndex: zi - 1 });
         dojo.connect(window, "onresize", function () { me.resize(); });
         dojo.connect(window, "onscroll", function () { me.scroll(); });
 
@@ -252,6 +258,10 @@ scil.Dialog = scil.extend(scil._base, {
     },
 
     startMove: function (e) {
+        this.movingSt = null;
+        var src = e.srcElement || e.target;
+        if (src.tagName == "IMG")
+            return;
         this.movingSt = new JSDraw2.Point(e.clientX, e.clientY);
     },
 

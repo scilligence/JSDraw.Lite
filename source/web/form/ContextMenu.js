@@ -128,6 +128,8 @@ scil.ContextMenu = scil.extend(scil._base, {
         for (var i = 0; i < this.items.length; ++i) {
             var item = this.items[i];
             if (item == "-") {
+                if (i == 0 || this.items[i - 1] == "-" || i == this.items.length - 1)
+                    continue;
                 var tr = scil.Utils.createElement(this.tbody, "tr");
                 scil.Utils.createElement(tr, "td", null, { textAlign: "center", width: "20px", backgroundColor: "#f5f5f5" });
                 scil.Utils.createElement(tr, "td", "<hr style='margin:0;padding:0'>", { padding: "0 2px 0 2px" }).colSpan = 3;

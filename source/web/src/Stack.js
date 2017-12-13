@@ -92,3 +92,40 @@ JSDraw2.Stack = scilligence.extend(scilligence._base, {
         return i;
     }
 });
+
+
+
+scil.Deque = scil.apply(scil._base, {
+    constructor: function () {
+        this.items = [];
+    },
+
+    pushRange: function (list) {
+        if (list == null)
+            return;
+
+        for (var i = 0; i < list.length; ++i)
+            this.push(list[i]);
+    },
+
+    push: function (n) {
+        this.items.push(n);
+    },
+
+    pop: function () {
+        if (this.items.length == 0)
+            return null;
+
+        var r = this.items[0];
+        this.items.splice(0, 1);
+        return r;
+    },
+
+    length: function () {
+        return this.items.length;
+    },
+
+    clear: function () {
+        this.items = [];
+    }
+});

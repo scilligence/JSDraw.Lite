@@ -55,6 +55,9 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
     },
 
     show: function () {
+        if (this.options.onshowdropdown != null)
+            this.options.onshowdropdown(this);
+
         if (this.auto == null) {
             var me = this;
             var w = this.options.width;
@@ -119,8 +122,12 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
 
         scil.Utils.removeAll(this.area);
         var me = this;
-        for (var i = 0; i < items.length; ++i)
-            this.createItem(items[i]);
+        for (var i = 0; i < items.length; ++i) {
+            var item = items[i];
+            if (item == "-" && (i == 0 || items[i - 1] == "-" || i == items.length - 1))
+                continue;
+            this.createItem(item);
+        }
     },
 
     createItem: function (item) {
@@ -129,13 +136,14 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
             return;
         }
 
+        if (typeof (item) == "string")
+            item = { label: item };
+
         var label = this.options.translate ? scil.Lang.res(item.label) : item.label;
         if (item.key == null && label != item.label)
             item.key = item.label;
 
         var div = scil.Utils.createElement(this.area, 'div', null, { padding: "3px 10px 3px 10px", color: JSDraw2.Skin.menu.color, cursor: "pointer" }, { url: item.url, key: item.key });
-        if (typeof (item) == "string")
-            item = { label: item };
 
         var div2 = div;
         if (item.items != null && item.items.length > 0) {
@@ -147,8 +155,8 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
 
         if (item.icon != null)
             scil.Utils.createElement(div2, "img", null, { marginRight: "5px" }, { src: item.icon });
-        if (item.label != null)
-            scil.Utils.createElement(div2, "span", item.label);
+        if (label != null)
+            scil.Utils.createElement(div2, "span", label);
 
         var me = this;
         if (item.items != null && item.items.length > 0) {

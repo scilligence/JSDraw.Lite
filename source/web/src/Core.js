@@ -181,3 +181,14 @@ scilligence.apply(scilligence, {
 
 scilligence.ready = dojo.ready;
 scilligence.onload = dojo.addOnLoad;
+
+
+/*
+scilligence.getGeoLocation = function () {
+    var p = null;
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function (position) { scilligence.geolocation = { x: position.coords.latitude, y: position.coords.longitude} });
+    }
+};
+scilligence.getGeoLocation();
+*/

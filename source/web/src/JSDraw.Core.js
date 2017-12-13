@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2017 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -10,7 +10,7 @@
 
 /**
 @project JSDraw
-@version 5.1.0
+@version 5.3.1
 @description JSDraw Chemical/Biological Structure Editor
 */
 
@@ -28,7 +28,7 @@ JSDraw2.speedup = { fontsize: 4, gap: 0, disableundo: false, minbondlength: 1 };
 * JSDraw Version
 * @property scilligence.JSDraw2.version
 */
-JSDraw2.version = "JSDraw V5.1.0";
+JSDraw2.version = "JSDraw V5.3.1";
 
 // JSDraw file version
 JSDraw2.kFileVersion = "5.0";

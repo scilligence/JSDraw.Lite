@@ -11,6 +11,27 @@
 /**
 * Tabs class - Tabs Control
 * @class scilligence.Tabs
+* <pre>
+* <b>Example:</b>
+        &lt;div id="div1"&gt;&lt;/div&gt;
+        &lt;script type="text/javascript"&gt;
+            scil.ready(function () {
+                var options = {
+                    tabs: {
+                        a: { caption: "Tab A" },
+                        b: { caption: "Tab B", closable: true }
+                    },
+                    onRemoveTab: function (td, tabs) { alert("remove tab"); },
+                    onBeforeShowTab: function (td, old, tabs) { },
+                    onShowTab: function (td, old, tabs) { },
+                    onCreateTab: function(td, clientarea, tabs) { },
+                    border: true
+                };
+
+                var tabs = new scil.Tabs("div1", options);
+            });
+        &lt;/script&gt;
+* </pre>
 */
 scil.Tabs = scil.extend(scil._base, {
     constructor: function (parent, options) {
@@ -19,7 +40,7 @@ scil.Tabs = scil.extend(scil._base, {
         this.currenttab = null;
         this.area = null;
 
-        if (typeof(parent) == "string")
+        if (typeof (parent) == "string")
             parent = dojo.byId(parent);
 
         var tabarea;
@@ -47,7 +68,7 @@ scil.Tabs = scil.extend(scil._base, {
                 this.area = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { padding: areapadding, border: areaborder });
                 tabarea = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { borderTop: tabborder, borderTopWidth: taggap });
                 break;
-            default:// top
+            default: // top
                 tabarea = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { borderBottom: tabborder, borderBottomWidth: taggap });
                 this.area = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { padding: areapadding, border: areaborder });
                 break;
@@ -55,14 +76,21 @@ scil.Tabs = scil.extend(scil._base, {
 
         this.tabcontainer = scil.Utils.createTable(tabarea, 0, 0);
         if (this.vertical)
-            this.tr = scil.Utils.createElement(this.tabcontainer, "tr"); 
+            this.tr = scil.Utils.createElement(this.tabcontainer, "tr");
 
         if (this.options.showtabs == false)
             this.tr.style.display = "none";
 
-        if (this.options.tabs != null) {
-            for (var i = 0; i < this.options.tabs.length; ++i)
-                this.addTab(this.options.tabs[i]);
+        var tabs = this.options.tabs;
+        if (tabs != null) {
+            if (tabs.length > 0) {
+                for (var i = 0; i < tabs.length; ++i)
+                    this.addTab(tabs[i]);
+            }
+            else {
+                for (var k in tabs)
+                    this.addTab(tabs[k], k);
+            }
         }
     },
 
@@ -92,7 +120,7 @@ scil.Tabs = scil.extend(scil._base, {
             this.options.onresizeclientarea(width, height, this);
     },
 
-    addTab: function (options) {
+    addTab: function (options, key) {
         if (this.vertical) {
             if (this.tr.childNodes.length > 0)
                 scil.Utils.createElement(this.tr, "td", "&nbsp;");
@@ -108,6 +136,7 @@ scil.Tabs = scil.extend(scil._base, {
         var padding = this.options.tabpadding == null ? "5px 10px 1px 10px" : this.options.tabpadding;
         var tr = this.vertical ? this.tr : scil.Utils.createElement(this.tabcontainer, "tr");
         var style = { border: "solid 1px #ddd", padding: padding, backgroundColor: "#eee" };
+
         switch (this.options.tablocation) {
             case "left":
                 style.borderRight = "none";
@@ -124,16 +153,40 @@ scil.Tabs = scil.extend(scil._base, {
                 style.borderBottomLeftRadius = "5px";
                 style.borderBottomRightRadius = "5px";
                 break;
-            default:// top
+            default: // top
                 style.borderBottom = "none";
                 style.borderTopLeftRadius = "5px";
                 style.borderTopRightRadius = "5px";
                 break;
         }
-        var td = scil.Utils.createElement(tr, "td", (icon != null ? "<img src='" + icon + "'>" : "") + (caption == null ? "Tab" : scil.Lang.res(caption)),
-            style, { key: options.tabkey }, function (e) {
-                me.showTab(e.srcElement || e.target);
-            });
+
+        var td = scil.Utils.createElement(tr, "td", null, style, { key: key || options.tabkey, sciltab: "1" });
+        var tbody2 = scil.Utils.createTable2(td, null, { cellSpacing: 0, cellPadding: 0 });
+        var s = (icon != null ? "<img src='" + icon + "'>" : "") + (caption == null ? "Tab" : scil.Lang.res(caption));
+
+        var td2 = null;
+        switch (this.options.tablocation) {
+            case "left":
+            case "right":
+                td._label = scil.Utils.createElement(scil.Utils.createElement(tbody2, "tr"), "td", s, null, null, function (e) { me.showTab(td); });
+                td2 = scil.Utils.createElement(scil.Utils.createElement(tbody2, "tr"), "td");
+                break;
+            case "bottom":
+            default: // top
+                var tr2 = scil.Utils.createElement(tbody2, "tr");
+                td._label = scil.Utils.createElement(tr2, "td", s, null, null, function (e) { me.showTab(td); });
+                td2 = scil.Utils.createElement(tr2, "td");
+                break;
+        }
+
+        if (options.closable) {
+            var img = scil.Utils.createButton(td2, { src: scil.Utils.imgSrc("img/del2.gif"), title: "Close", style: {}, onclick: function (e) { me.closeTab(td); } });
+            img.style.marginLeft = "10px";
+            td.style.paddingRight = "2px";
+
+            scil.connect(td2, "onmouseover", function () { img.style.background = "#fff"; });
+            scil.connect(td2, "onmouseout", function () { img.style.background = ""; });
+        }
 
         if (options.onmenu != null) {
             scil.connect(td, "onmouseup",
@@ -160,14 +213,28 @@ scil.Tabs = scil.extend(scil._base, {
         if (options.html != null)
             td.clientarea.innerHTML = options.html;
 
+        if (this.options.onCreateTab != null)
+            this.options.onCreateTab(td, td.clientarea, this);
+
         return td;
     },
 
-    currentTabKey: function() {
+    updateTabLabel: function (key, s) {
+        var td = typeof (key) == "string" ? this.findTab(key) : key;
+        if (td != null && td._label != null)
+            td._label.innerHTML = s;
+    },
+
+    closeTab: function (td) {
+        var me = this;
+        scil.Utils.confirmYes("Close this tab?", function () { me.removeTab(td); });
+    },
+
+    currentTabKey: function () {
         return this.currenttab == null ? null : this.currenttab.getAttribute("key");
     },
 
-    findTab: function(key) {
+    findTab: function (key) {
         var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
         for (var i = 0; i < list.length; ++i) {
             var td;
@@ -182,17 +249,57 @@ scil.Tabs = scil.extend(scil._base, {
         return null;
     },
 
-    removeTab: function(key) {
-        var td = this.findTab(key);
+    removeTab: function (key) {
+        var td = typeof (key) == "string" ? this.findTab(key) : key;
         if (td == null)
             return null;
 
+        if (this.options.onRemoveTab != null)
+            this.options.onRemoveTab(td, this);
+
+        var list = this.allTabsAsArray();
+        var i = scil.Utils.indexOf(list, td);
+
+        if (i > 0)
+            this.showTab(list[i - 1]);
+        else
+            this.showTab(list[i + 1]);
+
         td.clientarea.parentNode.removeChild(td.clientarea);
         delete td.clientarea;
-        td.parentNode.removeChild(td);
+
+        if (this.vertical) {
+            var td0 = td.previousSibling;
+            if (td0 != null && td0.clientarea == null)
+                td0.parentNode.removeChild(td0);
+            td.parentNode.removeChild(td);
+        }
+        else {
+            var tr = td.parentNode;
+            var tr0 = tr.previousSibling;
+            if (tr0 != null)
+                tr0.parentNode.removeChild(tr0);
+            tr.parentNode.removeChild(tr);
+        }
     },
 
-    allTabs: function() {
+    allTabsAsArray: function () {
+        var ret = [];
+        var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
+        for (var i = 0; i < list.length; ++i) {
+            var td;
+            if (this.vertical)
+                td = list[i];
+            else
+                td = list[i].childNodes[0];
+
+            if (td.getAttribute("sciltab") == "1")
+                ret.push(td);
+        }
+        return ret;
+    },
+
+    allTabs: function () {
         var ret = {};
         var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
         for (var i = 0; i < list.length; ++i) {
@@ -202,9 +309,11 @@ scil.Tabs = scil.extend(scil._base, {
             else
                 td = list[i].childNodes[0];
 
-            var k = td.getAttribute("key");
-            if (k != null && k != "")
-                ret[k] = td;
+            if (td.getAttribute("sciltab") == "1") {
+                var k = td.getAttribute("key");
+                if (k != null && k != "")
+                    ret[k] = td;
+            }
         }
         return ret;
     },
@@ -214,8 +323,7 @@ scil.Tabs = scil.extend(scil._base, {
             td = this.findTab(td);
         }
         else if (typeof (td) == "number") {
-            var dict = this.allTabs();
-            var list = scil.Utils.getDictValues(dict);
+            var list = this.allTabsAsArray();
             td = list[td];
         }
 
@@ -236,15 +344,16 @@ scil.Tabs = scil.extend(scil._base, {
             this.currenttab.style.color = "";
         }
 
-        if (old != null)
+        if (old != null && old.clientarea != null)
             old.clientarea.style.display = "none";
 
         td.style.backgroundColor = scil.Tabs.kHighlightColor;
         td.style.color = "#fff";
         this.currenttab = td;
-        td.clientarea.style.display = "";
+        if (td.clientarea != null)
+            td.clientarea.style.display = "";
 
-        if (this.options.onShowTab != null) 
+        if (this.options.onShowTab != null)
             this.options.onShowTab(td, old, this);
     },
 

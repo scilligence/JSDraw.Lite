@@ -21,7 +21,9 @@ scil.Lang = {
     token: "translate",
     key: "scil_lang",
     current: null,
+    language: null,
     en: {},
+    cn: {},
 
     add: function (dict, lang) {
         if (dict == null)
@@ -49,9 +51,13 @@ scil.Lang = {
         lang = lang.toLowerCase();
         if (lang == "zh")
             lang = "cn";
+
+        this.language = lang;
         this.current = this[lang];
-        if (this.current == null)
+        if (this.current == null) {
             this.current = this.en;
+            this.language = null;
+        }
 
         JSDraw2.Language.use(lang);
     },

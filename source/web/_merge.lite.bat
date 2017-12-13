@@ -36,6 +36,9 @@ type .\src\IDGenerator.js >> _merged.lite.js
 type .\src\Skin.js >> _merged.lite.js
 type .\src\JSDraw.Editor.js >> _merged.lite.js
 type .\src\JSDraw.Table.js >> _merged.lite.js
+type .\src\Bracket.js >> _merged.lite.js
+type .\src\Group.js >> _merged.lite.js
+type .\src\Text.js >> _merged.lite.js
 
 type .\form\Lang.js >> _merged.lite.js
 type .\form\Menu.js >> _merged.lite.js

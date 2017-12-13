@@ -143,31 +143,13 @@ JSDraw2.SuperAtoms = {
             return;
         this.dict = {};
         this.addSdf(this.sdf);
-        this._use3LetterAAs();
 
         if (JSDraw2.defaultoptions != null)
             this.addSdf(JSDraw2.defaultoptions.abbreviations);
         this.addSdf(JSDraw2.abbreviations);
-    },
 
-    _use3LetterAAs: function () {
-        if (JSDraw2.defaultoptions == null || !JSDraw2.defaultoptions.use3LetterAAs)
-            return;
-
-        var keys = { A: "Ala", R: "Arg", N: "Asn", D: "Asp", C: "Cys", E: "Glu", Q: "Gln", G: "Gly", H: "His", I: "Ile", L: "Leu", K: "Lys", M: "Met", F: "Phe", P: "Pro", S: "Ser", T: "Thr", W: "Trp", Y: "Tyr", V: "Val",
-            O: "Pyl", U: "Sec", B: "Asx", Z: "Glx", J: "Xle", X: "Xaa"
-        };
-        this.translateKeys(this.AminoAcids, keys);
-    },
-
-    translateKeys: function (dict, keys) {
-        for (var k in keys) {
-            var k2 = keys[k];
-            if (dict[k] != null && dict[k2] == null) {
-                dict[k2] = dict[k];
-                delete dict[k];
-            }
-        }
+        if (this.onAfterRead != null)
+            this.onAfterRead();
     },
 
     addSdf: function (sdf) {

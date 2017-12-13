@@ -143,7 +143,7 @@ JSDraw2.JSDrawIO = {
 
     jsdFileSave: function (jsd) {
         if (JSDraw2.JSDrawIO.jsdsavedlg == null) {
-            var div = scil.Utils.createElement(null, "div", this.res("Please select a chemistry file: "), { width: "350px", margin: "10px" });
+            var div = scil.Utils.createElement(null, "div", this.res("Please select the file format to be saved: "), { width: "420px", margin: "10px" });
             var sel = scil.Utils.createElement(div, "select");
             scil.Utils.createElement(sel, "option");
             if (JSDraw2.Security.kEdition == "Lite") {
@@ -158,8 +158,10 @@ JSDraw2.JSDrawIO = {
                 scil.Utils.listOptions(sel, JSDraw2.JSDrawIO.jsdFiles, null, false);
 
             var s = scil.Utils.createElement(div, "div", null, { marginTop: "20px", textAlign: "center" });
-            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>" + this.res("Save File") + "...");
-            dojo.connect(btn, "onclick", function (e) { JSDraw2.JSDrawIO.jsdFileSave2(); e.preventDefault(); });
+            scil.Utils.createButton(s, { src: scil.App.imgSmall("submit.png"), label: "Save File", onclick: function (e) { JSDraw2.JSDrawIO.jsdFileSave2(); e.preventDefault(); } });
+            scil.Utils.createButton(s, "&nbsp;");
+            scil.Utils.createButton(s, { src: scil.App.imgSmall("cancel.png"), label: "Cancel", onclick: function (e) { JSDraw2.JSDrawIO.jsdsavedlg.hide(); e.preventDefault(); } });
+
             JSDraw2.JSDrawIO.jsdsavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>" + this.res("Save File"), div);
             JSDraw2.JSDrawIO.jsdsavedlg.sel = sel;
         }
@@ -364,22 +366,22 @@ JSDraw2.JSDrawIO = {
             check.disabled = true;
         }
         var structurecolumn = jss.options.structurecolumn == null ? "" : jss.options.structurecolumn;
-        scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>Open File",
-            "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
+        scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
+            this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
             function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jss, ret); }, { structurecolumn: structurecolumn }, check);
 
         if (this.needCrossdomain()) {
             var url = JSDrawServices.url + "?cmd=";
             scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
-                "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles)",
+                this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles)",
                 url + "xdomain.post", function (xfilename) {
                     scil.Utils.jsonp(url + "openjss", function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jsd, ret); },
                     { _xfilename: xfilename, structurecolumn: structurecolumn });
                 }, null, null, null, null, true);
         }
         else {
-            scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>Open File",
-                "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
+            scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
+                this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
                 function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jss, ret); }, { structurecolumn: structurecolumn }, check);
         }
     },
@@ -396,15 +398,15 @@ JSDraw2.JSDrawIO = {
 
     jssFileSave: function (jss) {
         if (JSDraw2.JSDrawIO.jsssavedlg == null) {
-            var div = scil.Utils.createElement(null, "div", "Please select a file type:", { width: "350px", margin: "10px" });
+            var div = scil.Utils.createElement(null, "div", this.res("Please select a file type") + ":", { width: "350px", margin: "10px" });
             var sel = scil.Utils.createElement(div, "select");
             scil.Utils.createElement(sel, "option");
             scil.Utils.listOptions(sel, JSDraw2.JSDrawIO.jssFiles, null, false);
 
             var s = scil.Utils.createElement(div, "div", null, { marginTop: "20px", textAlign: "center" });
-            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>Save ...");
+            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>" + this.res("Save"));
             dojo.connect(btn, "onclick", function (e) { JSDraw2.JSDrawIO.jssFileSave2(); e.preventDefault(); });
-            JSDraw2.JSDrawIO.jsssavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>Save File", div);
+            JSDraw2.JSDrawIO.jsssavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>" + this.res("Save File"), div);
             JSDraw2.JSDrawIO.jsssavedlg.sel = sel;
         }
         JSDraw2.JSDrawIO.jsssavedlg.jss = jss;

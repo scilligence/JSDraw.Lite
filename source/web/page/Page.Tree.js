@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -10,6 +10,18 @@
 /**
 * Page.Tree class - Page.Tree Control
 * @class scilligence.Page.Tree
+* <pre>
+* <b>Example:</b>
+*    &lt;div id='parent'&gt;&lt;/div&gt;
+*    &lt;script type="text/javascript"&gt;
+*        scil.ready(function () {
+*            var root = { name: "Root", icon: "", expanded: true, children: [{ name: "Child", icon: "", leaf: true }, { name: "Child 2", icon: "", leaf: false } ] };
+*            var tree = new scil.Tree(scil.byId("parent"));
+*            tree.clear();
+*            tree.add(null, root);
+*        });
+*    &lt;/script&gt;
+* </pre>
 */
 scil.Page.Tree = scil.extend(scil._base, {
     constructor: function (page, options, parent) {
@@ -39,8 +51,10 @@ scil.Page.Tree = scil.extend(scil._base, {
         else {
             this.tree = new scil.Tree(this.form.div, args);
             this.tree.onSelectItem = function (item) { me.select(item); };
-            this.tree.onExpandItem = function (node, f) { if (me.options.onexpand != null) me.options.onexpand(node, f); };
-            this.refresh();
+            this.tree.onExpandItem = function (node, f) { if (me.options.onexpand != null) return me.options.onexpand(node, f); };
+
+            if (this.options.startrefresh != false)
+                this.refresh();
         }
 
         this.form.main.style.padding = 0;

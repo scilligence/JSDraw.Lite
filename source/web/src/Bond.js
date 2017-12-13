@@ -50,6 +50,8 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         this.f = null;
         this.r1 = null;
         this.r2 = null;
+        this.ratio1 = null;
+        this.ratio2 = null;
         this.type = type == null ? JSDraw2.BONDTYPES.SINGLE : type;
     },
 
@@ -65,7 +67,11 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         b._parent = this.parent;
         b.r1 = this.r1;
         b.r2 = this.r2;
+        b.ratio1 = this.ratio1;
+        b.ratio2 = this.ratio2;
+        b.z = this.z;
         b.tag = this.tag;
+        b.selected = this.selected;
         return b;
     },
 
@@ -233,7 +239,7 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
     },
 
     toggle: function (p, tor) {
-        return p.onLine(this.a1.p, this.a2.p, tor / 2);
+        return p.onLine(this.a1.p, this.a2.p, tor / 5);
     },
 
     drawCur: function (surface, r, color) {
@@ -252,7 +258,7 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         }
     },
 
-    getRColor: function(c, r){
+    getRColor: function (c, r) {
         if (!scil.Utils.isNullOrEmpty(this.color))
             return c;
         switch (r) {
@@ -264,6 +270,62 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
                 return "#aaaaaa";
         }
         return "black";
+    },
+
+    _fmtBondAnn: function (r, ratio) {
+        var s = "";
+
+        if (!scil.Utils.isNullOrEmpty(r) && r != "?" && r != "?:?") {
+            s = r + "";
+            var p = s.indexOf(':');
+            if (p > 0)
+                s = "Pos: " + s.substr(0, p) + "; R#: " + s.substr(p + 1);
+        }
+
+        if (!scil.Utils.isNullOrEmpty(ratio))
+            s += (s == "" ? "" : "; ") + "Ratio: " + ratio;
+
+        return s;
+    },
+
+    drawBondAnnotation: function (surface, fontsize, b) {
+        var ba1 = this._fmtBondAnn(this.r1, this.ratio1);
+        var ba2 = this._fmtBondAnn(this.r2, this.ratio2);
+
+        if (ba1 == "" || ba2 == "")
+            return;
+
+        var dx = (b.p1.x - b.p2.x) / 90;
+        var dy = (b.p1.y - b.p2.y) / 90;
+        var c1 = new JSDraw2.Point((b.p1.x + b.p2.x) / 2, (b.p1.y + b.p2.y) / 2);
+        var c2 = c1.clone();
+
+        if (Math.abs(b.a1.p.x - b.a2.p.x) < fontsize) {
+            //vertical
+            c1.offset(fontsize * dx + fontsize * 0.2, fontsize * dy - fontsize * 0.5);
+            c2.offset(-fontsize * dx + fontsize * 0.2, -fontsize * dy - fontsize * 0.5);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawText(surface, c1, ba1, "green", fontsize);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawText(surface, c2, ba2, "green", fontsize);
+        }
+        else if (Math.abs(b.a1.p.y - b.a2.p.y) < fontsize) {
+            //horizontal
+            c1.offset(fontsize * dx, fontsize * dy - fontsize * 0.9);
+            c2.offset(-fontsize * dx, -fontsize * dy + fontsize * 0.6);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawLabel(surface, c1, ba1, "green", fontsize, null, null, null, false);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawLabel(surface, c2, ba2, "green", fontsize, null, null, null, false);
+        }
+        else {
+            c1.offset(fontsize * dx, fontsize * dy);
+            c2.offset(-fontsize * dx, -fontsize * dy);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawLabel(surface, c1, ba1, "green", fontsize, null, null, null, false);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawLabel(surface, c2, ba2, "green", fontsize, null, null, null, false);
+        }
     },
 
     draw: function (surface, linewidth, m, fontsize, simpledraw) {
@@ -302,14 +364,27 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
             var c = new JSDraw2.Point((b.p1.x + b.p2.x) / 2, (b.p1.y + b.p2.y) / 2);
             var color1 = this.getRColor(this.color, this.r1);
             var color2 = this.getRColor(this.color, this.r2);
-            JSDraw2.Drawer.drawLine(surface, b.p1, c, color1, linewidth, null, "butt");
-            JSDraw2.Drawer.drawLine(surface, c, b.p2, color2, linewidth, null, "butt");
-            if (this.r1 == 1 && this.r2 == 2 || this.r1 == 2 && this.r2 == 1) {
-                JSDraw2.Bond.showHelmAnnotation(this.a1, this.a2, this.r1);
-                JSDraw2.Bond.showHelmAnnotation(this.a2, this.a1, this.r2);
+            if (this.z) {
+                var p1 = new JSDraw2.Point(b.p1.x, c.y);
+                var p2 = new JSDraw2.Point(b.p2.x, c.y);
+                JSDraw2.Drawer.drawLine(surface, b.p1, p1, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, p1, c, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, c, p2, color2, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, p2, b.p2, color2, linewidth, null, "butt");
+            }
+            else {
+                JSDraw2.Drawer.drawLine(surface, b.p1, c, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, c, b.p2, color2, linewidth, null, "butt");
+                if (this.r1 == 1 && this.r2 == 2 || this.r1 == 2 && this.r2 == 1) {
+                    JSDraw2.Bond.showHelmAnnotation(this.a1, this.a2, this.r1);
+                    JSDraw2.Bond.showHelmAnnotation(this.a2, this.a1, this.r2);
+                }
             }
             return;
         }
+
+        if (!simpledraw)
+            this.drawBondAnnotation(surface, fontsize, b);
 
         var dir = 8;
         if (b.type == JSDraw2.BONDTYPES.DOUBLE || b.type == JSDraw2.BONDTYPES.DELOCALIZED || b.type == JSDraw2.BONDTYPES.EITHER || b.type == JSDraw2.BONDTYPES.DOUBLEORAROMATIC)

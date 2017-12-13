@@ -157,8 +157,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.options.inktools = JSDraw2.defaultoptions.inktools != null ? JSDraw2.defaultoptions.inktools : !scil.Utils.isAttFalse(this.div, "inktools");
         if (this.options.highlighterrors == null)
             this.options.highlighterrors = JSDraw2.defaultoptions.highlighterrors != null ? JSDraw2.defaultoptions.highlighterrors : !scil.Utils.isAttFalse(this.div, "highlighterrors");
-        if (this.options.skin == null)
+        if (this.options.skin == null) {
             this.options.skin = JSDraw2.defaultoptions.skin != null ? JSDraw2.defaultoptions.skin : dojo.attr(this.div, "skin");
+            if (this.options.skin == null)
+                this.options.skin = "w8"
+        }
         if (this.options.monocolor == null)
             this.options.monocolor = scil.Utils.isAttTrue(this.div, "monocolor");
         if (this.options.fullscreen == null)
@@ -320,8 +323,12 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             if (scil.Utils.serviceAvailable() && scil.DnDFile != null) {
                 new scil.DnDFile(this.div, {
                     url: JSDrawServices.url + "?cmd=openjsd",
-                    onupload: function (args) { if (!scil.Utils.isChemFile(scil.Utils.getFileExt(args.filename))) return false; },
-                    callback: function (ret) { me.activate(true); JSDraw2.JSDrawIO.jsdFileOpen2(me, ret); }
+                    onupload: function (args) {
+                        if (!scil.Utils.isChemFile(scil.Utils.getFileExt(args.filename))) return false;
+                    },
+                    callback: function (ret) {
+                        me.activate(true); JSDraw2.JSDrawIO.jsdFileOpen2(me, ret);
+                    }
                 });
             }
         }
@@ -442,90 +449,68 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 this.doCmd("tlc");
             else
                 this.doCmd("select");
+
+            if (!this.options.appmode && !scil.Utils.isIE) // except IE, I#10205
+                scil.connect(document, "onpaste", function (e) { if (me.doPaste(e)) e.preventDefault(); });
         }
         else {
             this.doCmd("moveview");
         }
     },
 
-    //    gesture2: null,
-    //    gestureStart: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
+    doPaste: function (s) {
+        if (!this.activated)
+            return false;
 
-    //        this.gesture2 = null;
-    //        dojo.byId("DEBUG").value = "start\r\n";
-    //    },
+        if (this.texteditor.ed != null && this.texteditor.ed.input != null && this.texteditor.ed.input.style.display != "none")
+            return false;
 
-    //    gestureChange: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
+        var maxZindex = scil.Utils.getMaxZindex();
+        var zindex = scil.Utils.getZindex(this.div);
+        if (maxZindex > zindex)
+            return false;
 
-    //        dojo.byId("DEBUG").value += this.gesture2 + " " + e.translationX + "," + e.translationY + " " + e.scale + " " + Math.round(e.rotation * 360 / Math.PI) + " " + e.velocityX + "," + e.velocityY + "\r\n";
-    //        if (this.gesture2 == null) {
-    //            if (e.rotation == 0 && e.scale == 1)
-    //                return;
-    //            //this.gestureClone = this.clone();
-    //            this.gesture2 = { p: this.eventPoint(e), g: { trans: { x: e.translationX, y: e.translationY }, scale: e.scale, deg: Math.round(e.rotation * 360 / Math.PI)} };
-    //            this.gesture2.cloned = this.clone();
-    //            return;
-    //        }
+        var clipboard = s;
+        if (clipboard != null && clipboard.clipboardData != null)
+            s = clipboard.clipboardData.getData("text/plain");
 
-    //        if (this.gesture2 == null)
-    //            return;
-    //        this.start = null;
-    //        var g2 = { trans: { x: e.translationX, y: e.translationY }, scale: e.scale, deg: Math.round(e.rotation * 360 / Math.PI) };
-    //        var g1 = this.gesture2.g;
-    //        var f = false;
+        var m = null;
+        if (!scil.Utils.isNullOrEmpty(s)) {
+            m = new JSDraw2.Mol();
+            m.setXml(s);
+            if (m.isEmpty())
+                m = null;
+        }
 
-    //        var trans = Math.abs(g2.trans.x - g1.trans.x) + Math.abs(g2.trans.y - g1.trans.y);
-    //        var deg = Math.abs(g2.deg - g1.deg);
-    //        if (this.gesture2.mode == null) {
-    //            if (trans > 5 || deg > 5)
-    //                this.gesture2.mode = trans > deg ? "moveview" : "rotate";
-    //        }
+        if (m == null)
+            m = JSDraw2.Editor.getClipboard();
 
-    //        if (this.gesture2.mode == "moveview") {
-    //            if (trans > 5) {
-    //                this.m.offset(g2.trans.x - g1.trans.x, g2.trans.y - g1.trans.y);
-    //                f = true;
-    //            }
-    //        }
-    //        else if (this.gesture2.mode == "rotate") {
-    //            if (Math.abs(g2.deg - g1.deg) > 0.5) {
-    //                this.m.rotate(this.gesture2.p, g2.deg - g1.deg);
-    //                f = true;
-    //            }
-    //        }
-    //        if (!f && Math.abs(g2.scale / g1.scale - 1) > 0.05) {
-    //            this.scale(g2.scale / g1.scale, this.gesture2.p);
-    //            f = true;
-    //        }
+        if (m == null) {
+            // try ajax paste
+            if (clipboard != null && clipboard.clipboardData != null && JSDrawServices != null && JSDrawServices.url != null) {
+                var rtf = clipboard.clipboardData.getData("text/rtf");
+                if (!scil.Utils.isNullOrEmpty(rtf)) {
+                    var me = this;
+                    scil.Utils.ajax(JSDrawServices.url + "?cmd=paste.rtf2jsdraw", function (ret) {
+                        if (ret == null && ret.jsdraw == null)
+                            return;
+                        var m = new JSDraw2.Mol();
+                        if (m.setXml(ret.jsdraw) == null)
+                            return;
+                        var f = me.pasteMol(m);
+                        if (f)
+                            me.refresh();
+                    }, { rtf: rtf });
+                }
+            }
+            return false;
+        }
 
-    //        if (f) {
-    //            this.gesture2.changed = true;
-    //            this.gesture2.g = g2;
-    //            this.redraw();
-    //        }
-    //    },
-
-    //    gestureEnd: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
-
-    //        if (this.gesture2 != null && this.gesture2.changed) {
-    //            this.pushundo(this.gesture2.cloned);
-    //            this.gesture2 = null;
-    //            this.setModified(true);
-    //        }
-    //        //dojo.byId("DEBUG").value += "end\r\n";
-    //    },
+        var ret = this.pasteMol(m);
+        if (ret)
+            this.refresh();
+        return true;
+    },
 
     _showAllParents: function (e) {
         var ret = { display: [], visibility: [], visvalues: [] };
@@ -632,9 +617,18 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     * @returns null
     */
     copy: function (m) {
-        if (m == null)
+        if (m == null) {
             m = this.m.clone(true);
-        return JSDraw2.Editor.setClipboard(m, this.bondlength);
+            m.bondlength = this.bondlength;
+        }
+        JSDraw2.Editor.setClipboard(m, this.bondlength);
+
+        if (scil.Clipboard != null && m != null && !m.isEmpty()) {
+            scil.Clipboard.copy(m.getXml(null, null, null, null, this.bondlength));
+            return true;
+        }
+
+        return false;
     },
 
     /**
@@ -832,7 +826,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 list = JSDraw2.defaultoptions.atomlist != null ? JSDraw2.defaultoptions.atomlist : JSDraw2.PT.getCommonUsedElements("list");
             this.texteditor.ed.setItems(list);
             options.onSetValue = function (input, s) { input.value = s; };
-            options.minautowidth = 100;
+            options.minautowidth = JSDraw2.defaultoptions.minautowidth1 > 0 ? JSDraw2.defaultoptions.minautowidth1 : 100;
             if (a.bio != null)
                 options.onFilter = null;
             else
@@ -843,7 +837,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         }
         else if (br != null) {
             if (t.fieldtype == "BRACKET_TYPE") {
-                this.texteditor.ed.setItems(JSDraw2.SGroup.getDisplayTypes());
+                this.texteditor.ed.setItems(JSDraw2.SGroup == null ? null : JSDraw2.SGroup.getDisplayTypes());
                 options.onSetValue = function (input, s) {
                     var s2 = "";
                     if (scil.Utils.endswith(s, ")")) {
@@ -853,7 +847,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     }
                     input.value = s2;
                 };
-                options.minautowidth = 150;
+                options.minautowidth = JSDraw2.defaultoptions.minautowidth2 > 0 ? JSDraw2.defaultoptions.minautowidth2 : 150;
                 options.onFilter = null;
             }
             else if (t.fieldtype == "MOL_TYPE") {
@@ -864,14 +858,14 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     else
                         input.value = s;
                 };
-                options.minautowidth = 150;
+                options.minautowidth = JSDraw2.defaultoptions.minautowidth2 > 0 ? JSDraw2.defaultoptions.minautowidth2 : 150;
                 options.onFilter = null;
             }
         }
         else {
             this.texteditor.ed.setItems(JSDraw2.defaultoptions.textlist != null ? JSDraw2.defaultoptions.textlist : JSDraw2.TEXTKEYWORDS);
             options.onSetValue = function (input, s) { if (scil.Utils.indexOf(options.items, s) >= 0) input.value += s; else input.value = s; };
-            options.minautowidth = 300;
+            options.minautowidth = JSDraw2.defaultoptions.minautowidth3 > 0 ? JSDraw2.defaultoptions.minautowidth3 : 300;
             options.autosuggest = this.options.reagentsuggest;
             options.onFilter = options.autosuggest != null ? null : function () { };
         }
@@ -926,7 +920,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     filterAtomType: function (q) {
         if (this.texteditor.atom == null)
             return;
-        return JSDraw2.SuperAtoms.filter(q, 10);
+        return JSDraw2.SuperAtoms.filter(q, JSDraw2.defaultoptions.suggestcount > 0 ? JSDraw2.defaultoptions.suggestcount : 10);
     },
 
     createImageTo: function (parent) {
@@ -1013,13 +1007,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             if (this.texteditor.atom.bio != null) {
                 if (this.helm != null && scil.helm.isHelmNode(this.texteditor.atom)) {
-                    var m = scil.helm.Monomers.getMonomer(this.texteditor.atom, s);
-                    if (m == null) {
-                        scil.Utils.alert("Unknown monomer type: " + s);
-                        return;
-                    }
-                    this.texteditor.atom.elem = s;
-                    f = true;
+                    f = this.helm.setNodeTypeFromGui(this.texteditor.atom, s);
                 }
             }
             else {
@@ -1241,6 +1229,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             var g = this.createGroup(this.surface.rootgroup);
             g.monocolor = this.options.monocolor || JSDraw2.defaultoptions.monocolor;
             this.simpledraw = this.fontsize <= JSDraw2.speedup.fontsize;
+            this.updateGroupRect();
             this.m.draw(g, this.linewidth, this.fontsize, null, this.dimension, this.options.highlighterrors, this.options.showcarbon, this.simpledraw);
         }
 
@@ -1376,26 +1365,49 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         this.m.moveCenter(this.dimension.x, this.dimension.y);
     },
 
+    updateGroupRect: function () {
+        for (var i = 0; i < this.m.graphics.length; ++i) {
+            var g = JSDraw2.Group.cast(this.m.graphics[i]);
+            if (g != null)
+                g._updateRect(this.m, this.bondlength);
+        }
+    },
+
     /**
     * Clean up reaction
     * @function cleanupRxn
     * @returns true if it is a reaction
     */
     cleanupRxn: function () {
-        var f = this.m.cleanupRxn();
+        var f = this.m.cleanupRxn(this.bondlength);
         if (f)
             this.fitToWindow(this.bondlength);
         return f;
     },
 
-    setRxn: function (rxn, redraw, bondlength) {
+    setRxn: function (rxn, redraw, bondlength, addlabel) {
         this.pushundo();
         if (bondlength != null)
             this.bondlength = bondlength;
 
+        if (addlabel) {
+            for (var i = 0; i < rxn.reactants.length; ++i)
+                rxn.reactants[i].removeTextByFieldType("RXNLABEL");
+            for (var i = 0; i < rxn.products.length; ++i)
+                rxn.products[i].removeTextByFieldType("RXNLABEL");
+        }
+
         this.m.setRxn(rxn, this.bondlength);
         this.calcTextRect();
         this.m._layoutRxn(rxn, this.bondlength);
+
+        if (addlabel) {
+            for (var i = 0; i < rxn.reactants.length; ++i)
+                this.m._addRxnLabel(rxn.reactants[i], this.bondlength / 2);
+            for (var i = 0; i < rxn.products.length; ++i)
+                this.m._addRxnLabel(rxn.products[i], this.bondlength / 2);
+        }
+
         this.fitToWindow(this.bondlength);
         if (redraw != false)
             this.redraw();
@@ -1798,6 +1810,34 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         }
     },
 
+    selectCurrent: function (obj, e) {
+        if (this.curObject == obj)
+            return false;
+
+        this.curObject = obj;
+        if (this.options.onselectcurrent != null)
+            this.options.onselectcurrent(e, obj, this);
+
+        if (this.options.showhelmpopup)
+            this.onHelmSelectCurrent(e, obj);
+        return true;
+    },
+
+    onHelmSelectCurrent: function (e, obj) {
+        var a = JSDraw2.Atom.cast(obj);
+        if (a == null || this.start != null || this.contextmenu != null && this.contextmenu.isVisible()) {
+            org.helm.webeditor.MolViewer.hide();
+            return;
+        }
+        var type = a == null ? null : a.biotype();
+        if (type == null)
+            return;
+        var set = org.helm.webeditor.Monomers.getMonomerSet(type);
+        var s = a == null ? null : a.elem;
+        var m = set == null ? null : set[s.toLowerCase()];
+        org.helm.webeditor.MolViewer.show(e, type, m, s, this, a);
+    },
+
     mousemove: function (e, viewonly) {
         if (!this.activated) {
             //this.mousedownPoint = null;
@@ -1833,12 +1873,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         var obj = null;
         if (this.start == null || cmd != "select" && cmd != "lasso" && cmd != "selfrag") {
             obj = this.toggle(p);
-            if (this.curObject != obj) {
-                f = true;
-                this.curObject = obj;
-                if (this.options.onselectcurrent != null)
-                    this.options.onselectcurrent(e, obj, this);
-            }
+            f = this.selectCurrent(obj, e);
         }
 
         if (this.start != null) {
@@ -2232,6 +2267,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
             else if (this.resizing != null) {
                 if (this.resizing.changed) {
+                    this._bracketReselectAtoms();
                     this.pushundo(this.movingClone);
                     this.movingClone = null;
                     this.resizing = null;
@@ -2240,6 +2276,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
             else if (this.movingClone != null) {
                 if (!this.movingClone.startPt.equalsTo(p2)) {
+                    this._bracketReselectAtoms();
                     this.pushundo(this.movingClone);
                     this.mergeOverlaps();
                     this.movingClone = null;
@@ -2340,11 +2377,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.refresh(f);
 
             if (br != null) {
-                var t = this.m.getSgroupText(br, "BRACKET_TYPE");
-                if (t == null) {
-                    var gap = this.m.medBondLength(1.56) / 2;
-                    t = this.m.setSgroup(br, "BRACKET_TYPE", "#", br._rect.right() + gap / 4, br._rect.bottom() - gap);
-                }
+                var t = br.createSubscript(this.m, "#");
                 if (t != null)
                     this.showTextEditor(t, null, "");
             }
@@ -2463,6 +2496,9 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
 
             if (!f && this.curObject == null) {
+                if (this.options.helmtoolbar && !this.helm.isHelmCmd(cmd))
+                    return;
+
                 var bondtype = this.Cmd2BondType(cmd);
                 if (bondtype != null) {
                     var a1 = this.m.addAtom(new JSDraw2.Atom(p2));
@@ -2519,14 +2555,31 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
         }
 
-        if (this.helm != null && this.helm.isHelmCmd(cmd)) {
-            if (a1 != null && a2 == null) {
-                this.helm.extendChain(a1, cmd, p1, p2, cloned);
-                return;
-            }
-            else if (a1 == null && a2 == null) {
+        if (this.options.helmtoolbar) {
+            if (this.helm.connnectGroup(p1, this.curObject)) {
+                this.pushundo(cloned);
                 this.redraw();
                 return;
+            }
+
+            if ((a1 == null || a2 == null) && this.helm != null && !this.helm.isHelmCmd(cmd)) {
+                if (cmd == "single") {
+                    if (this.helm.connnectGroup(p1, this.curObject))
+                        this.pushundo(cloned);
+                }
+                this.redraw();
+                return;
+            }
+
+            if (this.helm != null && this.helm.isHelmCmd(cmd)) {
+                if (a1 != null && a2 == null) {
+                    this.helm.extendChain(a1, cmd, p1, p2, cloned);
+                    return;
+                }
+                else if (a1 == null && a2 == null) {
+                    this.redraw();
+                    return;
+                }
             }
         }
 
@@ -2622,6 +2675,16 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
         this.start = null;
         this.refresh(b != null);
+    },
+
+    _bracketReselectAtoms: function () {
+        var br = JSDraw2.Bracket.cast(this.curObject);
+        if (br == null)
+            return;
+
+        var list = this.m.bracketSelect(br.rect());
+        if (list != null && list.length > 0)
+            br.atoms = list;
     },
 
     _addNewAtomInExistingGroup: function (olda, atoms) {
@@ -2930,14 +2993,35 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         this.contextmenu.pos = this.eventPoint(e);
     },
 
+    menuSetStereochemistry: function (cmd) {
+        if (cmd == "abs")
+            cmd = null;
+
+        this.pushundo();
+        if (this.m.chiral == cmd)
+            this.m.chiral = null;
+        else
+            this.m.chiral = cmd;
+        this.refresh(true);
+    },
+
     menuCallback: function (cmd, obj) {
         var modified = false;
         var cloned = this.clone();
         switch (cmd) {
-            case "Chiral":
-                this.pushundo();
-                this.m.chiral = !this.m.chiral;
-                this.refresh(true);
+            //            case "Chiral":                                                                                                       
+            //                this.pushundo();                                                                                                       
+            //                this.m.chiral = !this.m.chiral;                                                                                                       
+            //                this.refresh(true);                                                                                                       
+            //                break;                                                                                                       
+            case "curveline":
+                obj.setAssayCurveLine(this);
+                break;
+            case "curveonly":
+                obj.setAssayCurveOnly(this);
+                break;
+            case "overlaycurves":
+                this.overlayCurves2(obj);
                 break;
             case "setrawassaydata":
                 obj.setAssayCurveRawData(this);
@@ -3027,7 +3111,22 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "helm_complementary_strand":
                 if (scil.Utils.startswith(obj.bio.annotation, "5'"))
-                    modified = this.helm.makeComplementaryStand(obj);
+                    modified = this.helm.makeComplementaryStrand(obj) != null;
+                break;
+            case "helm_create_group":
+                modified = this.helm.createGroup(obj, null, true) != null;
+                break;
+            case "helm_group_collapse":
+                modified = this.helm.collapseGroup(obj, true) != null;
+                break;
+            case "helm_bond_prop":
+                this.helm.setBondProp(obj);
+                break;
+            case "helm_atom_prop":
+                this.helm.setAtomProp(obj);
+                break;
+            case "group_setproperties":
+                this.setGroupProperties(obj);
                 break;
             case "detectstereochemistry":
                 this.detectChiralities(true);
@@ -3156,6 +3255,75 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.pushundo(cloned);
             this.refresh(modified);
         }
+    },
+
+    overlayCurves2: function (curve) {
+        curve = JSDraw2.AssayCurve.cast(curve);
+        if (curve == null)
+            return;
+
+        var list = [];
+        for (var i = 0; i < this.m.graphics.length; ++i) {
+            var c = JSDraw2.AssayCurve.cast(this.m.graphics[i]);
+            if (c != null && c.selected)
+                list.push(c);
+        }
+        this.overlayCurves(list, curve);
+    },
+
+    overlayCurves: function (list, curve) {
+        if (scil.Utils.indexOf(list, curve) < 0)
+            return;
+
+        this.pushundo();
+        for (var i = 0; i < list.length; ++i) {
+            list[i].curveline = false;
+            if (list[i] == curve) {
+                list[i].curveonly = false;
+            }
+            else {
+                list[i]._rect = curve._rect.clone();
+                list[i].curveonly = true;
+            }
+        }
+
+        this.refresh(true);
+    },
+
+    setGroupProperties: function (obj) {
+        var g = JSDraw2.Group.cast(obj);
+        if (g == null)
+            return;
+
+        var me = this;
+        if (this.groupPropDlg == null) {
+            var me = this;
+            var fields = { ratio: { label: "Ratio", type: "number", accepts: "(and)|(or)|[*|?]", width: 100 }, tag: { label: "Annotation", width: 300} };
+            this.groupPropDlg = scil.Form.createDlgForm("Group Properties", fields, { label: "Save", onclick: function () { me.setGroupProperties2(); } });
+        }
+        this.groupPropDlg.show();
+        this.groupPropDlg.form.setData({ ratio: g.ratio, tag: g.tag });
+        this.groupPropDlg.g = g;
+    },
+
+    setGroupProperties2: function () {
+        var data = this.groupPropDlg.form.getData();
+        var g = this.groupPropDlg.g;
+        if (data.ratio != "" && this.hasGroupBond(g))
+            data.ratio = "";
+
+        if ((g.ratio == null ? "" : g.ratio + "") != data.ratio || g.tag != data.tag) {
+            this.pushundo();
+            g.ratio = data.ratio;
+            g.tag = data.tag;
+            this.groupPropDlg.hide();
+            this.refresh(true);
+        }
+    },
+
+    hasGroupBond: function (g) {
+        var list = g.a == null ? null : this.m.getAllBonds(g.a);
+        return list != null && list.length > 0;
     },
 
     copyAs: function (fmt) {
@@ -3398,7 +3566,8 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     },
 
     expandSuperatom: function () {
-        JSDraw2.needPro();
+        if (!this.helm.expandSuperAtom(this.curObject))
+            JSDraw2.needPro();
     },
 
     _setSelectedBondType: function (bt) {
@@ -3686,7 +3855,8 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     break;
                 case 86: // V
                 case 118:
-                    if (!this.options.appmode) {
+                    if (!this.options.appmode && scil.Utils.isIE) { // except IE, I#10205
+                        // IE uses this;  All other browsers use document.onpaste event
                         if (this.paste())
                             this.refresh(true);
                     }
@@ -3812,7 +3982,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             var c = null;
             switch (e.keyCode) {
-                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
                 case 56:
                     c = '*';
                     break;
@@ -5020,13 +5190,13 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "zoomin":
                 this.pushundo();
-                this.scale(1.25);
+                this.scale(1.25, new JSDraw2.Point(this.dimension.x / 2, this.dimension.y / 2));
                 this.redraw();
                 useonce = false;
                 break;
             case "zoomout":
                 this.pushundo();
-                this.scale(0.75);
+                this.scale(0.75, new JSDraw2.Point(this.dimension.x / 2, this.dimension.y / 2));
                 this.redraw();
                 useonce = false;
                 break;
@@ -5074,7 +5244,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "rxn":
                 var cloned = this.clone();
-                if (this.cleanupRxn()) {
+                if (this.cleanupRxn(this.bondlength)) {
                     this.pushundo(cloned);
                     this.refresh(true);
                 }
@@ -5435,7 +5605,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             var fields = { filetype: { label: "File Type", type: "select", items: fileformats }, contents: { label: "Contents", type: "textarea", width: 800, height: 400} };
             me.savefiledlg = scil.Form.createDlgForm("Export File", fields, null, { onchange: function (field) {
                 if (field == me.savefiledlg.form.fields.filetype) me.onSaveFile();
-            } 
+            }
             });
         }
         me.savefiledlg.show();
@@ -5596,6 +5766,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     * @returns the molfile string
     */
     getMolfile: function (v3000, excludeDummyBonds) {
+        this.m.bondlength = this.bondlength;
         return this.m.getMolfile(false, v3000, excludeDummyBonds);
     },
 
@@ -6256,11 +6427,11 @@ scilligence.apply(JSDraw2.Editor, {
     __xcode: 91,
     undoGestureTime: 300,
     dblclickdelay: 300,
-    BONDLENGTH: 30,
-    ANGLESTOP: 30,
-    LINEWIDTH: 2,
-    TOR: 10,
-    FONTSIZE: 14,
+    BONDLENGTH: 30.0,
+    ANGLESTOP: 30.0,
+    LINEWIDTH: 2.0,
+    TOR: 10.0,
+    FONTSIZE: 14.0,
 
     /**
     * Get the Editor object by its ID
@@ -6278,10 +6449,13 @@ scilligence.apply(JSDraw2.Editor, {
         var data = scil.Utils.readCookie("__jsdrawclipboard");
         if (data == null || data == "")
             return null;
+
         data = JSDraw2.Base64.decode(data);
         var m = new JSDraw2.Mol();
         if (m.setXml(data) == null || m.isEmpty())
             return null;
+
+        //scil.Utils.createCookie("__jsdrawclipboard", "");
         return m;
     },
 
@@ -6452,7 +6626,7 @@ scilligence.apply(JSDraw2.Editor, {
             else {
                 args.div.style.border = "solid 1px #ddd";
                 JSDraw2.Editor.popupdlg.jsd = new JSDraw2.Editor(args.div);
-                this._loadData(value);
+                this._loadPopupData(value);
             }
 
             if (!scil.Utils.isIE || scil.Utils.isIE > 8)
@@ -6473,7 +6647,7 @@ scilligence.apply(JSDraw2.Editor, {
             //dojo.connect(JSDraw2.Editor.popupdlg.cancel, "onclick", fn2);
         }
         else {
-            this._loadData(value);
+            this._loadPopupData(value);
         }
 
         JSDraw2.Editor.popupdlg.button.innerHTML = scil.Utils.imgTag("tick.gif", btnText);
@@ -6482,7 +6656,7 @@ scilligence.apply(JSDraw2.Editor, {
         return JSDraw2.Editor.popupdlg.jsd;
     },
 
-    _loadData: function (value) {
+    _loadPopupData: function (value) {
         if (value == null) {
             JSDraw2.Editor.popupdlg.jsd.clear(true);
             return;

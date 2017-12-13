@@ -22,63 +22,86 @@ JSDraw2.FormulaParser = {
         }
 
         var m = this._parse(s, orphan, bonds);
-        if (m == null)
+        if (m == null && orphan)
+            m = this.pareFormulaAsSalt(s);
+
+        if (m == null || m.atoms.length == 0)
             return null;
 
-        if (salt != null) {
-            var coef = 1;
-            var s2 = salt.replace(/^[0-9]+/, "");
-            if (s2.length < salt.length) {
-                coef = parseInt(salt.substr(0, salt.length - s2.length));
-                salt = s2;
-            }
-            if (coef < 1)
-                return null;
-
-            // --COOH.NH4+
-            var m2 = null;
-            var salt2 = salt.replace(/[+|-][1-9]?$/, "");
-            var charge = this.parseCharge(salt.substr(salt2.length));
-            salt = salt2;
-
-            // strip H's
-            var elem = salt.replace(/[H][0-9]{0,10}/g, "");
-            m2 = this.molFromAtom(elem, false, charge);
-            if (m2 == null) {
-                var s2 = salt.replace(/^[A-Z][a-z]?/, "");
-                if (s2.length < salt.length) {
-                    elem = salt.substr(0, salt.length - s2.length);
-                    m2 = this._parse(s2);
-                    if (m2 == null)
-                        return null;
-                    var atts = JSDraw2.SuperAtoms._getAttachAtoms(m2);
-                    if (atts == null || atts.length != 1)
-                        return null;
-                    var a1 = atts[0].a;
-                    a1.attachpoints = [];
-                    if (elem != "H") {
-                        var a2 = new JSDraw2.Atom(atts[0].a.p.clone(), elem);
-                        var b = new JSDraw2.Bond(a1, a2);
-                        m2.addAtom(a2);
-                        m2.addBond(b);
-                    }
-                }
-            }
-            if (m2 == null)
+        if (!scil.Utils.isNullOrEmpty(salt)) {
+            var m2 = this.pareFormulaAsSalt(salt);
+            if (m2 == null || m2.atoms.length == 0)
                 return null;
 
             var a1 = m.atoms[m.atoms.length - 1];
-            for (var i = 0; i < coef; ++i) {
-                var m3 = m2.clone();
-                var a2 = m3.atoms[0];
-                m.mergeMol(m3);
-                var b = new JSDraw2.Bond(a1, a2);
-                b.type = JSDraw2.BONDTYPES.DUMMY;
-                m.addBond(b);
-            }
+            var a2 = m2.atoms[0];
+            m.mergeMol(m2);
+            var b = new JSDraw2.Bond(a1, a2);
+            b.type = JSDraw2.BONDTYPES.DUMMY;
+            m.addBond(b);
         }
 
         JSDraw2.SuperAtoms.normalize(m);
+        return m;
+    },
+
+    pareFormulaAsSalt: function (salt) {
+        if (scil.Utils.isNullOrEmpty(salt))
+            return null;
+
+        var coef = 1;
+        var s2 = salt.replace(/^[0-9]+/, "");
+        if (s2.length < salt.length) {
+            coef = parseInt(salt.substr(0, salt.length - s2.length));
+            salt = s2;
+        }
+        if (coef < 1)
+            return null;
+
+        // --COOH.NH4+
+        var m = null;
+        var salt2 = salt.replace(/[+|-][1-9]?$/, "");
+        var charge = this.parseCharge(salt.substr(salt2.length));
+        salt = salt2;
+
+        // strip H's
+        var elem = salt.replace(/[H][0-9]{0,10}/g, "");
+        m = this.molFromAtom(elem, false, charge);
+        if (m == null) {
+            var s2 = salt.replace(/^[A-Z][a-z]?/, "");
+            if (s2.length < salt.length) {
+                elem = salt.substr(0, salt.length - s2.length);
+                m = this._parse(s2);
+                if (m == null)
+                    return null;
+                var atts = JSDraw2.SuperAtoms._getAttachAtoms(m);
+                if (atts == null || atts.length != 1)
+                    return null;
+                var a1 = atts[0].a;
+                a1.attachpoints = [];
+                if (elem != "H") {
+                    var a2 = new JSDraw2.Atom(atts[0].a.p.clone(), elem);
+                    var b = new JSDraw2.Bond(a1, a2);
+                    m.addAtom(a2);
+                    m.addBond(b);
+                }
+            }
+        }
+
+        if (m == null || m.atoms.length == 0)
+            return null;
+
+        var m0 = m.clone();
+        for (var i = 1; i < coef; ++i) {
+            var a1 = m.atoms[m.atoms.length - 1];
+            var m3 = m0.clone();
+            var a2 = m3.atoms[0];
+            m.mergeMol(m3);
+            var b = new JSDraw2.Bond(a1, a2);
+            b.type = JSDraw2.BONDTYPES.DUMMY;
+            m.addBond(b);
+        }
+
         return m;
     },
 
@@ -93,10 +116,13 @@ JSDraw2.FormulaParser = {
                 return { coef: 1, mf: null, mw: 0, s: s };
         }
 
-        var patt = /^[0-9]{0,10}[\.]?[0-9]{0,9}[ ]?/;
-        var s2 = patt.exec(s) + "";
-        if (s2.length == s.length)
-            return null;
+        var s2 = "";
+        if (!JSDraw2.FormulaParser.ignoresaltcoef) {
+            var patt = /^[0-9]{0,10}[\.]?[0-9]{0,9}[ ]?/;
+            var s2 = patt.exec(s) + "";
+            if (s2.length == s.length)
+                return null;
+        }
 
         var coef = 1.0;
         if (s2 != "") {
@@ -112,16 +138,16 @@ JSDraw2.FormulaParser = {
         var salts = JSDraw2.defaultoptions.salts || JSDraw2.salts;
         if (salts != null && salts[caps] != null) {
             mf = salts[caps];
-            mw = JSDraw2.FormulaParser.mf2mw(mf);
+            mw = this.mf2mw(mf, true);
         }
         else {
             mf = s;
-            mw = JSDraw2.FormulaParser.mf2mw(mf);
+            mw = this.mf2mw(mf, true);
         }
         if (mw == null || mw == 0)
             return null;
 
-        return { coef: coef, mf: coef == 1 ? mf : coef + "(" + mf + ")", mw: Math.round(mw * 1000) / 1000, s: coef == 1 ? s : coef + s };
+        return { coef: coef, mf: coef == 1 ? mf : coef + "(" + mf + ")", mw: Math.round(mw * (coef > 0 ? coef : 1) * 1000) / 1000, s: coef == 1 ? s : coef + s, stats: this.mf2Stats(mf, true) };
     },
 
     parseCharge: function (s) {
@@ -194,29 +220,27 @@ JSDraw2.FormulaParser = {
         if (mol == null)
             return null;
 
-        var bios = [];
-        var elements = {};
-        var isotopes = {};
+        var ret = { elements: {}, charges: 0, isotopes: {}, bios: [] };
+
         var hs = 0;
-        var charges = 0;
         var multicenterHs = 0;
         for (var i = 0; i < mol.atoms.length; ++i) {
             var a = mol.atoms[i];
             if (a.elem == "5'") {
-                if (elements["H"] == null)
-                    elements["H"] = 1;
+                if (ret.elements["H"] == null)
+                    ret.elements["H"] = 1;
                 else
-                    ++elements["H"];
+                    ++ret.elements["H"];
             }
             else if (a.elem == "3'") {
-                if (elements["H"] == null)
-                    elements["H"] = 1;
+                if (ret.elements["H"] == null)
+                    ret.elements["H"] = 1;
                 else
-                    ++elements["H"];
-                if (elements["O"] == null)
-                    elements["O"] = 1;
+                    ++ret.elements["H"];
+                if (ret.elements["O"] == null)
+                    ret.elements["O"] = 1;
                 else
-                    ++elements["O"];
+                    ++ret.elements["O"];
             }
             else if (a.bio != null) {
                 switch (a.bio.type) {
@@ -227,7 +251,7 @@ JSDraw2.FormulaParser = {
                     case JSDraw2.BIO.RNA:
                         var se = new JSDraw2.SequenceEditor();
                         se.setXml(a.bio.sequences);
-                        bios.push({ mw: se.getMolWeight() });
+                        ret.bios.push({ mw: se.getMolWeight() });
                         break;
                 }
             }
@@ -248,39 +272,44 @@ JSDraw2.FormulaParser = {
                 if (dummy > 0)
                     multicenterHs += sum;
             }
+            else if (a.elem == "#") {
+                var salt = this.parseSalt(a.alias);
+                if (salt != null)
+                    this.mergeStats(ret, salt.stats, salt.coef);
+            }
             else {
                 var e = a.elem;
                 if (a.isotope > 0) {
-                    var n = isotopes[e];
+                    var n = ret.isotopes[e];
                     if (n == null)
-                        isotopes[e] = {};
-                    var iso = isotopes[e];
+                        ret.isotopes[e] = {};
+                    var iso = ret.isotopes[e];
                     if (iso[a.isotope] == null)
                         iso[a.isotope] = 1;
                     else
                         iso[a.isotope] = iso[a.isotope] + 1;
                 }
                 else {
-                    var n = elements[e];
+                    var n = ret.elements[e];
                     if (n == null)
-                        elements[e] = 1;
+                        ret.elements[e] = 1;
                     else
-                        elements[e] = n + 1;
+                        ret.elements[e] = n + 1;
                 }
                 hs += a.hcount;
             }
-            charges += a.charge;
+            ret.charges += a.charge;
         }
 
         hs -= multicenterHs;
         if (hs > 0) {
-            if (elements["H"] != null)
-                elements["H"] = hs + elements["H"];
+            if (ret.elements["H"] != null)
+                ret.elements["H"] = hs + ret.elements["H"];
             else
-                elements["H"] = hs;
+                ret.elements["H"] = hs;
         }
 
-        return { elements: elements, charges: charges, isotopes: isotopes, bios: bios };
+        return ret;
     },
 
     stats2mw: function (stats) {
@@ -403,8 +432,8 @@ JSDraw2.FormulaParser = {
         return s;
     },
 
-    mf2mw: function (mf) {
-        var stats = this.mf2Stats(mf);
+    mf2mw: function (mf, issalt) {
+        var stats = this.mf2Stats(mf, issalt);
         return this.stats2mw(stats);
     },
 
@@ -413,19 +442,45 @@ JSDraw2.FormulaParser = {
         return this.stats2mf(stats);
     },
 
-    mf2Stats: function (mf) {
+    mf2Stats: function (mf, issalt) {
         if (mf == null || mf == "")
             return null;
 
         var charges = 0;
         var mf2 = mf.replace(/(([+|-][0-9]{0,2})|([ ][0-9]{0,2}[+|-]))$/, "");
-        if (mf2.length < mf.length)
+        if (mf2.length < mf.length) {
             charges = this.parseCharge(mf.substr(mf2.length));
+        }
 
         var ret = this.mf2Stats2(mf2);
-        if (ret != null)
+        if (ret != null && charges != 0) {
+            // I#10049
+            if (issalt)
+                charges = this.calcSaltCharges(ret, charges);
+
             ret.charges += charges;
+        }
+
         return ret;
+    },
+
+    calcSaltCharges: function (ret, charges) {
+        if (JSDraw2.defaultoptions.calcsaltcharges != true)
+            return charges;
+
+        if (charges >= 1) {
+            if (charges > 1) {
+                for (var k in ret.elements)
+                    ret.elements[k] /= charges * 1.0;
+            }
+
+            if (ret.elements["H"] == null)
+                ret.elements["H"] = 0;
+            --ret.elements["H"];
+            charges = 0;
+        }
+
+        return charges;
     },
 
     mf2Stats2: function (s) {

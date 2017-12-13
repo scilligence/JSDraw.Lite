@@ -15,7 +15,7 @@ JSDraw2.Skin = {
 
     reset: function () {
         this.jsdraw = { bkcolor: "#e1e1e1", bkimg: scil.Utils.imgSrc("img/hbg.gif"), toolbarbk: scil.Utils.imgSrc("img/toolbarbk.jpg"), hovercolor: "#eef", btnselcolor: "#bbf" };
-        this.jssdf = { bgcolor: "#ebecee", headerimg: scil.Utils.imgSrc("img/header-bg.gif"), headercolor: "#ebecee", rowcolor: "#f96", oddcolor: "", evencolor: "#eee", border: "solid 1px #ccc" };
+        this.jssdf = { bgcolor: "#eee", headerimg: scil.Utils.imgSrc("img/header-bg.gif"), headercolor: "#eee", rowcolor: "#f96", oddcolor: "", evencolor: "#eee", border: "solid 1px #ccc" };
         scilligence.apply(this.jssdf, this.jsdraw);
         this.dialog = { bkimg: scil.Utils.imgSrc("img/dlgheader.gif"), bkcolor: "#6badf6", border: "1px solid #4f6d81" };
     },

@@ -48,7 +48,7 @@ scil.Table = scil.extend(scil._base, {
     * @constructor Table
     * @param {bool} viewonly
     * @param {bool} header
-    * @param {dictionary} options - { viewonly(bool), header(bool), selectrow (bool), rowcheck(bool), delrow(bool), addrow (bool), onAdd, onselectrow, onchange }
+    * @param {dictionary} options - { viewonly(bool), header(bool), selectrow (bool), rowcheck(bool), delrow(bool), addrow (bool), selectrow (bool), onAdd, onselectrow, onchange }
     */
     constructor: function (viewonly, header, options) {
         if (viewonly != null && typeof (viewonly) == "object") {
@@ -79,6 +79,8 @@ scil.Table = scil.extend(scil._base, {
         this.tbody = null;
         this.items = null;
         this.key = null;
+
+        this._lastcheck = null;
     },
 
     /**
@@ -165,7 +167,7 @@ scil.Table = scil.extend(scil._base, {
         this.setData(data);
     },
 
-    getCsv: function() {
+    getCsv: function () {
         var s = "";
         var i = 0;
         for (var k in this.items) {
@@ -718,7 +720,7 @@ scil.Table = scil.extend(scil._base, {
     /**
     * Set cell value
     * @function setCellValue2
-    * @param {string} rowkey the key of the row, or row index, or TR
+    * @param {string/number/DOM} rowkey the key of the row, or row index, or TR
     * @param {string} colkey the key of the column
     * @param {object} value
     * @returns true or false
@@ -735,8 +737,9 @@ scil.Table = scil.extend(scil._base, {
             tr = rowkey
         }
         else {
+            var list = this.tbody.childNodes;
             for (var i = this._startrow; i < list.length; ++i) {
-                if (list[i].getAttribute("key") == key) {
+                if (list[i].getAttribute("key") == rowkey) {
                     tr = list[i];
                     break;
                 }
@@ -758,12 +761,12 @@ scil.Table = scil.extend(scil._base, {
     },
 
     /**
-   * Get cell value
-   * @function getCellValue2
-   * @param {string} rowkey the key of the row, or row index
-   * @param {string} colkey the key of the column
-   * @returns the cell value
-   */
+    * Get cell value
+    * @function getCellValue2
+    * @param {string/number} rowkey the key of the row, or row index
+    * @param {string} colkey the key of the column
+    * @returns the cell value
+    */
     getCellValue2: function (rowkey, colkey) {
         if (this.items[colkey] == null)
             return null;
@@ -773,8 +776,9 @@ scil.Table = scil.extend(scil._base, {
             tr = this.tbody.childNodes[this._startrow + rowkey];
         }
         else {
+            var list = this.tbody.childNodes;
             for (var i = this._startrow; i < list.length; ++i) {
-                if (list[i].getAttribute("key") == key) {
+                if (list[i].getAttribute("key") == rowkey) {
                     tr = list[i];
                     break;
                 }
@@ -800,7 +804,7 @@ scil.Table = scil.extend(scil._base, {
         if (tr == null || tr.getAttribute("sciltable") != "1")
             return;
 
-        if (f || tr == this.currow) 
+        if (f || tr == this.currow)
             tr.style.backgroundColor = JSDraw2.Skin.jssdf.rowcolor;
         else
             tr.style.backgroundColor = tr.getAttribute("bgcolor");
@@ -858,7 +862,7 @@ scil.Table = scil.extend(scil._base, {
 
         var me = this;
         var bgcolor = this.tbody.childNodes.length % 2 == 1 ? JSDraw2.Skin.jssdf.oddcolor : JSDraw2.Skin.jssdf.evencolor;
-        var r = scil.Utils.createElement(null, "tr", null, { backgroundColor: bgcolor }, { sciltable: "1" , bgcolor: bgcolor });
+        var r = scil.Utils.createElement(null, "tr", null, { backgroundColor: bgcolor }, { sciltable: "1", bgcolor: bgcolor });
         if (beforerow == null)
             this.tbody.appendChild(r);
         else
@@ -885,10 +889,14 @@ scil.Table = scil.extend(scil._base, {
         var td = scil.Utils.createElement(r, "td");
         if (this.options.rowcheck) {
             var name = this.options.rowcheck == "radio" ? "__scil_table_" + this._tableid + "_radio" : null;
-            var check = scil.Utils.createElement(td, this.options.rowcheck == "radio" ? "radio" : "checkbox", null, null, { name: name });
+            var checktype = this.options.rowcheck == "radio" ? "radio" : "checkbox";
+            var check = scil.Utils.createElement(td, checktype, null, null, { name: name });
             check.checked = values == null ? false : values.rowchecked;
             if (this.options.onrowcheck != null)
                 dojo.connect(check, "onchange", function () { me.options.onrowcheck(r, check.checked); });
+
+            if (checktype == "checkbox")
+                scil.connect(check, "onclick", function (e) { me.checkedClick(e); });
         }
         else {
             td.style.display = "none";
@@ -908,8 +916,10 @@ scil.Table = scil.extend(scil._base, {
             td.style.borderLeft = JSDraw2.Skin.jssdf.border;
             if (item.type == "hidden" || item.ishidden)
                 td.style.display = "none";
-            td.field = scil.Form.createField(td, item, this.viewonly || lockeditems != null && lockeditems[id], values == null ? item.value : values[id], values, true, true);
-            if (this.viewonly && item.type != "img") {
+
+            var viewonly = this.viewonly || item.viewonly || lockeditems != null && lockeditems[id];
+            td.field = scil.Form.createField(td, item, viewonly, values == null ? item.value : values[id], values, true, true);
+            if (viewonly && item.type != "img") {
                 td.field.style.width = "100%";
             }
             else {
@@ -940,6 +950,29 @@ scil.Table = scil.extend(scil._base, {
         }
 
         return r;
+    },
+
+    checkedClick: function (e) {
+        var check = e.srcElement || e.target;
+        if (!check.checked)
+            return;
+
+        if (e.shiftKey) {
+            var nodes = this.tbody.childNodes;
+            var start = scil.Utils.indexOf(nodes, scil.Utils.getParent(this._lastcheck, "TR"));
+            var end = scil.Utils.indexOf(nodes, scil.Utils.getParent(check, "TR"));
+            if (st != -1 && ed != -1) {
+                var st = Math.min(start, end);
+                var ed = Math.max(start, end);
+                for (var i = st; i <= ed; ++i) {
+                    if (nodes[i].style.display == "none")
+                        nodes[i].childNodes[this.checkIndex].firstChild.checked = false;
+                    else
+                        nodes[i].childNodes[this.checkIndex].firstChild.checked = true;
+                }
+            }
+        }
+        this._lastcheck = check;
     },
 
     _connectOnchange: function (field, item) {
@@ -1007,7 +1040,7 @@ scil.Table = scil.extend(scil._base, {
             };
 
             var me = this;
-            var fields = { table: { type: "table", columns: columns, options: { rowcheck: true, viewonly: true } } };
+            var fields = { table: { type: "table", columns: columns, options: { rowcheck: true, viewonly: true}} };
             this.showhideDlg = scil.Form.createDlgForm("Show/Hide Columns", fields, { label: "OK", onclick: function () { me.showHideColumns2(); } }, { hidelabel: true });
         }
 
@@ -1019,6 +1052,7 @@ scil.Table = scil.extend(scil._base, {
                 rows.push({ caption: this.items[k].label, key: k, rowchecked: !this.items[k].ishidden });
         }
         this.showhideDlg.form.setData({ table: rows });
+        this.showhideDlg.moveCenter();
     },
 
     showHideColumns2: function () {

@@ -69,8 +69,9 @@ JSDraw2.Point = scilligence.extend(scilligence._base, {
     * @returns true or false
     */
     onLine: function (p1, p2, tor) {
-        var d = p1.distTo(this) + p2.distTo(this) - p1.distTo(p2);
-        return Math.abs(d) <= tor;
+        var d2 = p1.distTo(p2);
+        var d = p1.distTo(this) + p2.distTo(this) - d2;
+        return Math.abs(d) <= tor * (50 / d2);
     },
 
     inTriangle: function (v1, v2, v3) {

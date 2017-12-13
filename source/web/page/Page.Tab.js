@@ -1,7 +1,7 @@
 ﻿﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //

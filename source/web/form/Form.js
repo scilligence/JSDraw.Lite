@@ -18,6 +18,7 @@
 *    table and text: table, tabtext, richtext, html, plaintext
 *    chemistry and biology: jsdraw, jdraw.fm, jsdraw.se, jsdraw.table, plate, sketches, plates
 *    file: file, filepath, filelink, filedblink, image
+*    form: subform
 * <b>Example:</b>
 *    &lt;script type="text/javascript"&gt;
 *        dojo.ready(function () {
@@ -136,8 +137,12 @@ scil.Form = scil.extend(scil._base, {
             if (data != null) {
                 v = data[id];
                 var item = this.items[id];
-                if (v == null && item != null && item.alternativekey != null)
-                    v = data[item.alternativekey];
+                if (v == null && item != null) {
+                    if (item.alternativekey != null)
+                        v = data[item.alternativekey];
+                    if (v == null && item.was != null)
+                        v = data[item.was];
+                }
             }
 
             if (overwritemode) {
@@ -262,7 +267,7 @@ scil.Form = scil.extend(scil._base, {
     render2: function (items, parent, options) {
         var align = options == null ? null : options.align;
         var buttons = options == null ? null : options.buttons;
-        var immediately = typeof (options) == "boolean" ? options : (options == null ? null : options.immediately);
+        var immediately = typeof (options) == "boolean" ? options : (options == null ? true : options.immediately != false);
 
         this.tbody = null;
         this.fields = {};
@@ -307,7 +312,10 @@ scil.Form = scil.extend(scil._base, {
         var lastitem = null;
         for (var id in this.items) {
             var item = this.items[id];
-            if (item.type == "group") {
+            if (typeof (item) == "function") {
+                continue;
+            }
+            else if (item.type == "group") {
                 tr = scil.Utils.createElement(this.tbody, "tr");
                 colspan = cols;
             }
@@ -345,18 +353,20 @@ scil.Form = scil.extend(scil._base, {
             scil.Utils.createElement(tr, "td", "&nbsp;");
             tr = scil.Utils.createElement(this.tbody, "tr");
             this.buttonTR = tr;
-            if (options == null || !options.vertical) {
+
+            if (options == null || !options.vertical)
                 scil.Utils.createElement(tr, "td");
-            }
-            var td = scil.Utils.createElement(tr, "td");
+
+            var td = scil.Utils.createElement(tr, "td", null, { whiteSpace: "nowrap" });
             if (options.centerbuttons)
                 td.style.textAlign = "center";
             if (buttons.length > 0) {
                 for (var i = 0; i < buttons.length; ++i) {
-                    if (buttons[i] == " ")
+                    var b = buttons[i];
+                    if (b == " ")
                         scil.Utils.createElement(td, "span", "&nbsp;");
                     else
-                        this.buttons.push(scil.Utils.createButton(td, buttons[i], this.lang));
+                        this.buttons.push(scil.Utils.createButton(td, b, this.lang));
                 }
             }
             else {
@@ -376,6 +386,12 @@ scil.Form = scil.extend(scil._base, {
         scil.Utils.ajaxUploadFile(this.postform, url, params, callback);
     },
 
+    postForm: function (url, params, callback) {
+        if (this.postform == null)
+            return;
+        scil.Utils.ajaxUploadFile(this.postform, url, params, callback);
+    },
+
     /**
     * Check required fields
     * @function checkRequiredFields
@@ -390,6 +406,10 @@ scil.Form = scil.extend(scil._base, {
                 continue;
 
             item.td1.style.backgroundColor = JSDraw2.Skin.form.labelstyles.backgroundColor;
+            if (item.type == "jsdraw.table") {
+                n += field.jsd.checkRequiredFields(0);
+            }
+
             if (!item.required)
                 continue;
 
@@ -532,10 +552,19 @@ scil.Form = scil.extend(scil._base, {
     },
 
     focus: function (key) {
+        scil.Form.focus(this.fields, key);
+    }
+});
+
+scil.apply(scil.Form, {
+    focus: function (fields, key) {
+        if (fields == null)
+            return;
+
         var field = null;
         if (key == null) {
-            for (var k in this.fields) {
-                var f = this.fields[k];
+            for (var k in fields) {
+                var f = fields[k];
                 if (f != null && (f.tagName == "INPUT" || f.tagName == "TEXTAREA" || f.tagName == "SELECT") && !f.disabled && !f.readOnly) {
                     var tr = scil.Utils.getParent(f, "TR");
                     if (tr != null && tr.style.display != "none" && !f.disabled) {
@@ -546,7 +575,7 @@ scil.Form = scil.extend(scil._base, {
             }
         }
         else {
-            field = this.fields[key];
+            field = fields[key];
         }
 
         if (field != null && field.style.dislay != "none" && field.focus != null) {
@@ -556,10 +585,8 @@ scil.Form = scil.extend(scil._base, {
             catch (e) {
             }
         }
-    }
-});
+    },
 
-scil.apply(scil.Form, {
     mergeForm: function (src1, src2) {
         if (src1 == null && src2 == null)
             return null;
@@ -622,7 +649,7 @@ scil.apply(scil.Form, {
     },
 
     _isAllString: function (s) {
-        if (s == null && typeof (s) != "object")
+        if (s == null || typeof (s) != "object")
             return false;
 
         if (s.length > 0)
@@ -679,6 +706,9 @@ scil.apply(scil.Form, {
             case "password":
                 tag = "password";
                 break;
+            case "rawfile":
+                tag = "file";
+                break;
             case "number":
                 tag = "input";
                 break;
@@ -702,11 +732,16 @@ scil.apply(scil.Form, {
             case "filepath":
             case "filelink":
             case "filedblink":
+            case "subform":
             case "image":
             case "curve":
             case "sketches":
             case "code":
+            case "signature":
                 tag = "div";
+                break;
+            case "button":
+                tag = "button";
                 break;
             case "postfile":
                 tag = "file";
@@ -830,7 +865,12 @@ scil.apply(scil.Form, {
             field.style.color = JSDraw2.Skin.form.fieldcolor;
         field.stype = itemtype;
 
-        var args = item.options == null ? scil.clone(item) : item.options;
+        // I#10377
+        // var args = item.options == null ? scil.clone(item) : item.options;
+        var args = scil.clone(item);
+        if (item.options != null)
+            scil.apply(args, item.options);
+
         if (viewonly)
             args.viewonly = viewonly;
 
@@ -917,6 +957,11 @@ scil.apply(scil.Form, {
             if (value != null)
                 field.jsd.setValue(value);
         }
+        else if (itemtype == "signature") {
+            field.jsd = new scil.FieldSignature(field, args);
+            if (value != null)
+                field.jsd.setValue(value);
+        }
         else if (itemtype == "richtext") {
             field.jsd = new scil.FieldRichText(field, args);
             if (value != null)
@@ -924,6 +969,11 @@ scil.apply(scil.Form, {
         }
         else if (itemtype == "plaintext") {
             field.jsd = new scil.FieldPlainText(field, args);
+            if (value != null)
+                field.jsd.setXml(value);
+        }
+        else if (itemtype == "subform") {
+            field.jsd = new scil.FieldSubform(field, args);
             if (value != null)
                 field.jsd.setXml(value);
         }
@@ -964,7 +1014,7 @@ scil.apply(scil.Form, {
         }
         else if (itemtype == "date") {
             if (!viewonly && !item.viewonly)
-                new scil.DatePicker(field);
+                new scil.DatePicker(field, item.options);
             if (value != null) {
                 if (value == "{today}")
                     value = scil.Utils.dateStr(new Date(), true, "yyyy-mm-dd");
@@ -974,6 +1024,9 @@ scil.apply(scil.Form, {
         else if (itemtype == "color") {
             field.jsd = new scil.ColorPicker2(field, { viewonly: viewonly });
             this.setFieldData(field, item, viewonly, value, values);
+        }
+        else if (itemtype == "button") {
+            field.innerHTML = item.text;
         }
         else {
             if (value != null || itemtype == "html" && (item.template != null || item.render != null))
@@ -985,7 +1038,7 @@ scil.apply(scil.Form, {
         if (item.title != null)
             field.setAttribute("title", item.title);
         if (item.onclick != null)
-            dojo.connect(field, "onclick", function () { item.onclick(field, item); });
+            dojo.connect(field, "onclick", function () { item.onclick(field, item, form); });
         if (field.tagName == "INPUT") {
             if (item.onenter != null)
                 dojo.connect(field, "onkeydown", function (e) { if (e.keyCode == 13) { item.onenter(field); e.preventDefault(); } });
@@ -1004,24 +1057,23 @@ scil.apply(scil.Form, {
         if (item.items != null)
             options.items = item.items;
 
-        if (itemtype == "editableselect")
+        if (!viewonly && itemtype == "editableselect")
             field.jsd = new scil.EditableSelect(field, options);
-        else if (itemtype == "dropdowninput")
+        else if (!viewonly && itemtype == "dropdowninput")
             field.jsd = new scil.DropdownInput(field, options);
-        else if (itemtype == "dropdowncheck")
+        else if (!viewonly && itemtype == "dropdowncheck")
             field.jsd = new scil.DropdownCheck(field, options);
-        else if (itemtype == "multiselect")
+        else if (!viewonly && itemtype == "multiselect")
             field.jsd = new scil.DropdownCheck(field, options);
         else if (!viewonly && itemtype == "htmltext") {
-            var args = {};
-            args.buttons = [{ id: "insertimage", iconurl: scil.Utils.imgSrc("img/add.gif"), tooltips: "Insert Image", onclick: function (ed) { scil.Form.insertImage(ed); } }];
-            args.buttons1 = "bold,italic,underline,strikethrough,|,fontsizeselect,|,bullist,numlist,|,outdent,indent,|,sub,sup,|,insertimage";
-            if (item.fullscreen) {
-                args.plugins = "fullscreen";
-                args.buttons1 += ",|,fullscreen";
-            }
-            if (item.extrabuttons != null)
-                args.buttons1 += item.extrabuttons;
+            if (args.buttons == null)
+                args.buttons = [];
+            else if (typeof (args.buttons) == "string")
+                args.buttons = [args.buttons];
+            args.buttons.push({ iconurl: scil.Utils.imgSrc("img/uploadimg.gif"), tooltips: "Insert Image", onclick: function (ed) { scil.Richtext.insertImage(ed); } });
+            args.buttons.push({ iconurl: scil.Utils.imgSrc("img/benzene.gif"), tooltips: "Insert Structure", onclick: function (ed) { scil.Richtext.insertStructure(ed); } });
+            if (args.extrabuttons != null)
+                args.buttons.push(args.extrabuttons);
             if (value != null && value == "")
                 field.value = value;
             scil.Richtext.initTinyMCE(field, args);
@@ -1051,6 +1103,9 @@ scil.apply(scil.Form, {
 
         if (field.tagName == "INPUT" && field.disabled != true && item.type != "checkbox" && item.type != "radio")
             dojo.connect(field, "onfocus", function () { field.select(); });
+
+        if (field.jsd != null)
+            field.jsd.parentform = form;
 
         return field;
     },
@@ -1097,20 +1152,22 @@ scil.apply(scil.Form, {
             return field.checked;
         else if (field.stype == "htmltext") {
             var ed = scil.Form.getEd(field);
-            return ed == null ? field.innerHTML : ed.getContent();
+            return ed == null ? field.innerHTML : scil.Richtext.getHtml(ed);
         }
         else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" ||
             field.stype == "image" || field.stype == "curve" || field.stype == "sketches")
             return field.jsd.getXml();
-        else if (field.stype == "tabtext" || field.stype == "richtext" || field.stype == "plaintext")
+        else if (field.stype == "tabtext" || field.stype == "richtext" || field.stype == "plaintext" || field.stype == "subform")
             return field.jsd.getXml();
         else if (field.stype == "code")
+            return field.jsd.getValue();
+        else if (field.stype == "signature")
             return field.jsd.getValue();
         else if (field.stype == "number")
             return field.jsd.getValue();
         else if (field.type == "password")
-            return field.value == "" ? "" : (JSDraw2.password != null && JSDraw2.password.encrypt && scil.Form.encryptpassword != null ? scil.Form.encryptpassword(field.value) : field.value);
-        else if (field.stype == "postfile")
+            return field.value == "" ? "" : (item.encrypt != false && JSDraw2.password != null && JSDraw2.password.encrypt && scil.Form.encryptpassword != null ? scil.Form.encryptpassword(field.value) : field.value);
+        else if (field.stype == "postfile" || field.stype == "button")
             return null;
         else {
             if (field.value == null)
@@ -1184,20 +1241,29 @@ scil.apply(scil.Form, {
             }
         }
         else if (item.type == "date") {
+            if (typeof (value) == "string" && !scil.Utils.isNullOrEmpty(value) && !isNaN(value)) {
+                value = parseFloat(value);
+                if (isNaN(value))
+                    value = null;
+            }
+            var s = item.timeformat == null ? scil.Utils.dateStr(value, true, item.dateformat) : scil.Utils.timeStr(value, true, item.timeformat);
             if (viewonly) {
                 if (field.tagName == "INPUT")
-                    field.value = scil.Utils.dateStr(value, true, "yyyy-mm-dd");
+                    field.value = s;
                 else
-                    this._setInnerHTML(field, scil.Utils.dateStr(value, true), originalvalue);
+                    this._setInnerHTML(field, s, originalvalue);
             }
             else {
-                field.value = scil.Utils.dateStr(value, true, "yyyy-mm-dd");
+                field.value = s;
             }
         }
         else if (item.type == "color") {
             field.jsd.setValue(value);
         }
         else if (field.stype == "code") {
+            field.jsd.setValue(value);
+        }
+        else if (field.stype == "signature") {
             field.jsd.setValue(value);
         }
         else if (field.stype == "number") {
@@ -1211,7 +1277,7 @@ scil.apply(scil.Form, {
                 s = "<a target=_blank href='" + s + "'>" + s + "</a>";
             this._setInnerHTML(field, s, originalvalue);
         }
-        else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" || field.stype == "image" || field.stype == "curve" || field.stype == "sketches") {
+        else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" || field.stype == "image" || field.stype == "curve" || field.stype == "sketches" || field.stype == "subform") {
             field.jsd.setXml(value);
         }
         else if (field.stype == "fileshelf") {
@@ -1219,11 +1285,11 @@ scil.apply(scil.Form, {
         }
         else if (item.type == "htmltext") {
             if (viewonly) {
-                this._setInnerHTML(field, field.innerHTML = value == null ? "" : value, originalvalue);
+                this._setInnerHTML(field, field.innerHTML = value == null ? "" : value, originalvalue, true);
             }
             else {
                 var ed = scil.Form.getEd(field);
-                if (ed != null)
+                if (ed != null && ed.dom != null)
                     ed.setContent(value == null ? "" : value);
                 else
                     field.value = value == null ? "" : value;
@@ -1233,9 +1299,12 @@ scil.apply(scil.Form, {
             if (field.tagName == "TEXTAREA")
                 field.value = value == null ? "" : value;
             else
-                this._setInnerHTML(field, this.wrapTextarea(value), originalvalue);
+                this._setInnerHTML(field, this.wrapTextarea(value), originalvalue, true);
         }
-        else if (field.stype != "div") {
+        else if (field.stype != "div" && field.stype != "button") {
+            if (field.stype == "hidden" && value != null && typeof (value) == "object" && value.tagName != null) // I#10361
+                value = scil.Utils.getOuterXml(value);
+
             if (field.tagName == "INPUT" || field.tagName == "TEXTAREA")
                 field.value = value == null ? "" : value;
             else if (field.tagName == "DIV")
@@ -1251,8 +1320,13 @@ scil.apply(scil.Form, {
         return value == null ? "" : "<pre style='margin:0;padding:0;" + whitespace + "'>" + scil.Utils.escapeHtml(value) + "</pre>";
     },
 
-    _setInnerHTML: function (field, value, originalvalue) {
-        field.innerHTML = value == null ? "" : value;
+    _setInnerHTML: function (field, value, originalvalue, clear) {
+        if (value == null)
+            value = "";
+        else if (clear)
+            value += "<div style='clear:both'></div>"; // I#11990
+
+        field.innerHTML = value;
 
         // very tricky: in chrome:
         //     0 == "" -> true
@@ -1321,6 +1395,11 @@ scil.apply(scil.Form, {
 
     /**
     * Create a HTML form
+    * @function {static} createForm2
+    * @param {DOM} parent parent element
+    * @param {array} items an array of field definitions. item: { id, iskey ... }
+    * @param {dict} buttons button definition: { label, onclick }
+    * @returns a form object
     * <pre>
     * <b>Example:</b>
     *    dojo.ready(function () {
@@ -1332,11 +1411,7 @@ scil.apply(scil.Form, {
     *        };
     *        var form = scil.Form.createForm2(parent, items, { label: "Login", onclick: function () { alert("Blah..." } });
     *    });
-    * @function {static} createForm2
-    * @param {DOM} parent parent element
-    * @param {array} items an array of field definitions. item: { id, iskey ... }
-    * @param {dict} buttons button definition: { label, onclick }
-    * @returns a form object
+    * </pre>
     */
     createForm2: function (parent, items, buttons, options) {
         if (options == null)
@@ -1625,6 +1700,30 @@ scil.apply(scil.Form, {
         }
     },
 
+    setButtonValueByKey: function (buttons, key, s) {
+        if (buttons == null)
+            return;
+
+        for (var i = 0; i < buttons.length; ++i) {
+            if (buttons[i].key == key) {
+                buttons[i].b.value = s == null ? "" : s;
+                break;
+            }
+        }
+    },
+
+    setButtonValueByKey: function (buttons, key, value) {
+        if (buttons == null || scil.Utils.isNullOrEmpty(key) || scil.Utils.isNullOrEmpty(value))
+            return;
+
+        for (var i = 0; i < buttons.length; ++i) {
+            if (buttons[i].key == key) {
+                buttons[i].b.value = value;
+                break;
+            }
+        }
+    },
+
     getButtonValueByKey: function (buttons, key) {
         if (buttons == null)
             return null;
@@ -1653,7 +1752,7 @@ scil.apply(scil.Form, {
             tr = scil.Utils.createElement(scil.Utils.createTable2(parent, null, { cellSpacing: 0, cellPadding: 0, align: tableAlign }), "tr");
 
         for (var i = 0; i < buttons.length; ++i) {
-            if (i == 0 && (buttons[i] == "-" || buttons[i] == "|"))
+            if ((i == 0 || buttons[i - 1] == "-" || buttons[i - 1] == "|") && (buttons[i] == "-" || buttons[i] == "|"))
                 continue;
 
             if (tableAlign != null)
@@ -1685,7 +1784,7 @@ scil.apply(scil.Form, {
                 l.style.marginLeft = padding + "px";
             }
             b = scil.Utils.createElement(parent, "select", null, button.styles, button.attributes);
-            scil.Utils.listOptions(b, button.items || button.options, null, null, button.sort);
+            scil.Utils.listOptions(b, button.items || button.options, button.value, null, button.sort);
             if (button.onchange != null)
                 dojo.connect(b, "onchange", function (b) { button.onchange(b); });
             b.style.marginRight = padding + "px";
@@ -1698,14 +1797,19 @@ scil.apply(scil.Form, {
             b = scil.Utils.createElement(parent, "input", null, button.styles, button.attributes);
             if (button.onenter != null)
                 dojo.connect(b, "onkeydown", function (e) { if (e.keyCode == 13) button.onenter(b); });
+            if (button.onchange != null)
+                dojo.connect(b, "onchange", function (b) { button.onchange(b); });
             if (button.autosuggesturl != null)
-                new scil.AutoComplete(b, button.autosuggesturl);
+                new scil.AutoComplete(b, button.autosuggesturl, { onsuggest: button.onsuggest });
             b.style.marginRight = padding + "px";
 
             if (button.type == "date")
                 new scil.DatePicker(b);
             else if (button.type == "color")
                 new scil.ColorPicker2(b);
+
+            if (button.value != null)
+                b.value = button.value;
         }
         else {
             b = scil.Utils.createButton(parent, button);
@@ -1716,21 +1820,6 @@ scil.apply(scil.Form, {
 
     getEd: function (field) {
         return tinymce.get(field.id);
-    },
-
-    insertImage: function (ed) {
-        var url = JSDraw2.defaultoptions.imageserviceurl;
-        if (url == null || url == "") {
-            url = "./HelpService.aspx";
-            //scil.Utils.alert("*JSDraw2.defaultoptions.imageserviceurl* is not set yet");
-            //return;
-        }
-
-        scil.Richtext.saveBookmark(ed);
-        scil.Utils.uploadFile("Insert Image", 'Choose a picture file:', url + "?cmd=help.uploadimage", function (ret) {
-            var html = "<img src='" + url + "?imageid=" + ret.imageid + "'>";
-            scil.Richtext.restoreBookmark(ed, html);
-        });
     },
 
     dict2formxml: function (dict) {
@@ -1756,7 +1845,7 @@ scil.apply(scil.Form, {
     },
 
     encryptpassword: function (s) {
-        if (this.isNullOrEmpty(s))
+        if (scil.Utils.isNullOrEmpty(s))
             return null;
 
         var Key = CryptoJS.enc.Utf8.parse(JSDraw2.password != null && JSDraw2.password.key != null ? JSDraw2.password.key : "PSVJQRk9qTEp!6U1dWUZ%RVFG=1VVT0=");

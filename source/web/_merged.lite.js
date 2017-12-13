@@ -181,6 +181,17 @@ scilligence.apply(scilligence, {
 
 scilligence.ready = dojo.ready;
 scilligence.onload = dojo.addOnLoad;
+
+
+/*
+scilligence.getGeoLocation = function () {
+    var p = null;
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function (position) { scilligence.geolocation = { x: position.coords.latitude, y: position.coords.longitude} });
+    }
+};
+scilligence.getGeoLocation();
+*/
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
@@ -340,6 +351,13 @@ scilligence.Utils = {
         return e.touches.length == 1 && d <= 500;
     },
 
+    /**
+    * Check if a html element has a parent
+    * @function {static} hasAnsestor
+    * @param {DOM} obj - to be checked child
+    * @param {DOM} parent
+    * @returns a number
+    */
     hasAnsestor: function (obj, parent) {
         if (parent == null || obj == null)
             return false;
@@ -366,6 +384,13 @@ scilligence.Utils = {
         return Math.round(val * d) / d;
     },
 
+    /**
+    * Round a number to significant digits
+    * @function {static} roundToSignificantDigits
+    * @param {number} d - a number to be converted
+    * @param {number} digits
+    * @returns a number
+    */
     roundToSignificantDigits: function (d, digits) {
         if (d == 0 || isNaN(d))
             return d;
@@ -378,6 +403,14 @@ scilligence.Utils = {
         return Math.log(val) / Math.LN10;
     },
 
+    /**
+    * Round a number as string
+    * @function {static} roundStr
+    * @param {number} val - a number to be converted
+    * @param {number} n - the number of decimal
+    * @param {number} padding
+    * @returns a string
+    */
     roundStr: function (val, n, padding) {
         if (val == null || isNaN(val))
             return "";
@@ -388,7 +421,7 @@ scilligence.Utils = {
         var s = (Math.round(val * d) / d) + "";
         if (s == "0" && val != 0 || n > 0 && (Math.abs(val) < 1 / d || val < 1 && s.length < (val + "").length)) { //I#9297
             var e = Math.floor(this.log10(val));
-            if (e < 0) {
+            if (e < 1) {
                 var ret = this.roundStr(val * Math.pow(10, -e), n, padding) + "e" + e;
                 return parseFloat(ret) == parseFloat(s) ? s : ret;
             }
@@ -432,25 +465,49 @@ scilligence.Utils = {
         }
 
         if (Math.abs(val) >= 1000)
-            return this.roundStr(val / 1000, n, padding) + " " + (unit == "g/L" ? "g/mL" : "k" + unit);
+            return this.roundStr(val / 1000, n, padding) + " " + this._convertUnit(unit, 1000);
         if (Math.abs(val) >= 1)
-            return this.roundStr(val, n, padding) + " " + (unit == "g/L" ? "mg/mL" : unit);
+            return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 1);
 
         val *= 1000;
-        if (Math.abs(val) >= 1) {
-            if (unit == "g/L" || unit == "mg/mL")
-                return this.roundStr(val, n, padding) + " ug/mL";
-            else if (unit == "mg/L" || unit == "ug/mL")
-                return this.roundStr(val, n, padding) + " ug/L";
-            else
-                return this.roundStr(val, n, padding) + " m" + unit;
+        if (Math.abs(val) >= 1)
+            return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 0.001);
+
+        val *= 1000;
+        return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 0.000001);
+    },
+
+    _convertUnit: function (unit, scale) {
+        switch (scale) {
+            case 1:
+                if (unit == "g/L")
+                    return "mg/mL";
+                else if (unit == "U/L")
+                    return "mU/mL";
+                else
+                    return unit;
+            case 1000:
+                if (unit == "g/L")
+                    return "g/mL";
+                else if (unit == "U/L")
+                    return "U/mL";
+                else
+                    return "k" + unit;
+            case 0.001:
+                if (unit == "g/L" || unit == "mg/mL")
+                    return "mg/L";
+                else if (unit == "U/L" || unit == "mU/mL")
+                    return "mU/L";
+                else
+                    return "m" + unit;
+            case 0.000001:
+                if (unit == "g/L" || unit == "mg/mL")
+                    return "ug/L";
+                else if (unit == "U/L" || unit == "mU/mL")
+                    return "uU/L";
+                else
+                    return "u" + unit;
         }
-
-        val *= 1000;
-        if (unit == "g/L" || unit == "mg/mL")
-            return this.roundStr(val, n, padding) + " ug/L";
-        else
-            return this.roundStr(val, n, padding) + " u" + unit;
     },
 
     disabledcontextmenus: [],
@@ -503,6 +560,12 @@ scilligence.Utils = {
         return typeof JSDrawServices != "undefined" && typeof JSDrawServices.url != "undefined" && JSDrawServices.url != null;
     },
 
+    /**
+    * evaluate a javascript expression
+    * @function {static} eval
+    * @param {string} s - javascript expression
+    * @returns javascript object
+    */
     eval: function (s) {
         if (s == "" || typeof (s) != "string")
             return null;
@@ -769,6 +832,10 @@ scilligence.Utils = {
                 var p = s.lastIndexOf('/');
                 var path = p < 0 ? '' : scil.Utils.trim(s.substr(0, p + 1));
                 var file = scil.Utils.trim(p < 0 ? s : s.substr(p + 1)).toLowerCase();
+                p = file.indexOf('?');
+                if (p > 0)
+                    file = file.substr(0, p);
+
                 if (this.startswith(file, "scilligence.jsdraw2.") && this.endswith(file, ".js")) {
                     if (scil.Utils.startswith(path, "http://") || scil.Utils.startswith(path, "https://") || scil.Utils.startswith(path, "//"))
                         return this._scripturl = path;
@@ -990,6 +1057,21 @@ scilligence.Utils = {
         return ret;
     },
 
+    escFileName: function (s) {
+        if (s == null)
+            return s;
+
+        var ret = "";
+        for (var i = 0; i < s.length; ++i) {
+            var c = s.substr(i, 1);
+            if (s.charCodeAt(i) > 255 || /[a-z|0-9|_| |\-|\(|\)|\{|\}|\[|\]|\.]/ig.test(c))
+                ret += c;
+            else
+                ret += '_';
+        }
+        return ret;
+    },
+
     getFirstChild: function (parent, tag) {
         if (parent == null)
             return null;
@@ -1167,7 +1249,7 @@ scilligence.Utils = {
             iconurl = scil.Utils.imgSrc("img/" + iconurl + ".gif");
         scil.Utils.alertdlg.show(caption);
         scil.Utils.alertdlg.callback = callback;
-        scil.Utils.alertdlg.msg.innerHTML = message == null ? '' : "<pre style='margin:0'>" + message + "</pre>";
+        scil.Utils.alertdlg.msg.innerHTML = message == null ? '' : "<div style='margin:0;max-width:800px;'>" + message + "</div>";
         scil.Utils.alertdlg.img.src = iconurl;
 
         scil.Utils.alertdlg.moveCenter();
@@ -1540,10 +1622,8 @@ scilligence.Utils = {
         if (ret == null) {
             if (scil.Utils.isNullOrEmpty(format)) {
                 format = JSDraw2.defaultoptions.dateformat;
-                if (scil.Utils.isNullOrEmpty(JSDraw2.defaultoptions.dateformat))
+                if (scil.Utils.isNullOrEmpty(format))
                     format = "yyyy-mmm-dd";
-                else
-                    format = JSDraw2.defaultoptions.dateformat;
             }
 
             // if the input is 2014-04-08, this is to fix the timezone issue
@@ -1682,6 +1762,10 @@ scilligence.Utils = {
             else if (button.url)
                 dojo.connect(a, "onclick", function () { if (button.target == null) window.location = button.url; else window.open(button.url, button.target); });
         }
+
+        if (button.key != null)
+            a.setAttribute("key", button.key);
+
         return a;
     },
 
@@ -1704,6 +1788,9 @@ scilligence.Utils = {
     createElement: function (parent, tag, html, styles, attributes, onclick) {
         if (typeof (parent) == "string")
             parent = scil.byId(parent);
+
+        if (attributes != null && attributes.title != null)
+            attributes.title = this.res(attributes.title);
 
         var e = null;
         tag = tag.toLowerCase();
@@ -1903,6 +1990,9 @@ scilligence.Utils = {
     * @returns null
     */
     selectOption: function (select, val, ignorecase) {
+        if (select == null)
+            return;
+
         for (var i = 0; i < select.options.length; ++i) {
             var opt = select.options[i];
             if (this.isEqualStr(opt.value, val + "", ignorecase) || typeof (val) == "boolean" && (val == true && scil.Utils.isTrue(opt.value) || val == false && scil.Utils.isFalse(opt.value))) {
@@ -2133,6 +2223,7 @@ scilligence.Utils = {
     ajax: function (url, callback, params, opts) {
         if (opts == null)
             opts = {};
+
         var xhrArgs = {
             url: url,
             sync: opts.sync,
@@ -2161,7 +2252,27 @@ scilligence.Utils = {
         if (opts.showprogress)
             scil.Progress.show((opts.caption == null ? "Loading ..." : opts.caption), false, (opts.message == null ? "Communicating with the server ..." : opts.message), false);
 
-        dojo.xhrPost(xhrArgs);
+        if (scil.Utils.onajaxcall != null)
+            scil.Utils.onajaxcall(xhrArgs, opts);
+
+        if (opts.headers != null)
+            xhrArgs.headers = opts.headers;
+
+        switch (opts.verb) {
+            case "delete":
+            case "del":
+                dojo.xhrDelete(xhrArgs);
+                break;
+            case "put":
+                dojo.xhrPut(xhrArgs);
+                break;
+            case "get":
+                dojo.xhrGet(xhrArgs);
+                break;
+            default:
+                dojo.xhrPost(xhrArgs);
+                break;
+        }
     },
 
     stupidTomcatBug: function (params) {
@@ -2257,6 +2368,9 @@ scilligence.Utils = {
                 }
             };
 
+            if (scil.Utils.onjsonpcall != null)
+                scil.Utils.onjsonpcall(jsonpArgs);
+
             dojo.io.script.get(jsonpArgs);
         }
     },
@@ -2292,8 +2406,8 @@ scilligence.Utils = {
                 break;
         }
 
-        if (this.onAjaxCallback != null) {
-            if (this.onAjaxCallback(ret))
+        if (scil.Utils.onAjaxCallback != null) {
+            if (scil.Utils.onAjaxCallback(ret))
                 return;
         }
 
@@ -2331,12 +2445,28 @@ scilligence.Utils = {
             else
                 url += "?wrapper=textarea";
         }
+
+        // I#12036
+        if (scil.Utils.___ajaxUploadFile == null) {
+            dojo.config.dojoBlankHtmlUrl = scil.Utils.imgSrc("blank.html");
+            dojo.io.iframe.send({
+                url: dojo.config.dojoBlankHtmlUrl,
+                form: form,
+                method: "get",
+                content: params,
+                timeoutSeconds: 60,
+                preventCache: true,
+                handleAs: "text"
+            });
+            scil.Utils.___ajaxUploadFile == true;
+        }
+
         dojo.io.iframe.send({
             url: url,
             form: form,
             method: "post",
             content: params,
-            timeoutSeconds: 5,
+            timeoutSeconds: 60,
             preventCache: true,
             handleAs: "text",
             error: function (data) {
@@ -2384,6 +2514,7 @@ scilligence.Utils = {
         url: null,
         params: null,
         msg: null,
+        checkfiles: null,
         dlg: null,
         btn: null,
         tbody: null,
@@ -2410,14 +2541,14 @@ scilligence.Utils = {
 
             for (var i = 0; i < n; ++i) {
                 tr = JsUtils.createElement(this.tbody, "tr");
-                JsUtils.createElement(tr, "td", "File:");
+                JsUtils.createElement(tr, "td", scil.Utils.res("File") + ":");
                 this.files[i] = JsUtils.createElement(JsUtils.createElement(tr, "td"), "file", null, null, args);
             }
 
             if (scil.MobileData != null) {
                 var me = this;
                 tr = JsUtils.createElement(this.tbody, "tr");
-                JsUtils.createElement(tr, "td", "<div style='white-space:nowrap'>From Mobile</div>", null, { valign: "top" });
+                JsUtils.createElement(tr, "td", "<div style='white-space:nowrap'>" + scil.Utils.res("From Mobile") + ":</div>", null, { valign: "top" });
                 var td2 = JsUtils.createElement(tr, "td");
                 this.mobileimages = JsUtils.createElement(td2, "hidden", null, null, { name: "mobileimages" });
                 scil.Utils.createButton(td2, { label: "Show", type: "a", onclick: function () { me.showImageList(); } });
@@ -2449,9 +2580,10 @@ scilligence.Utils = {
             }
         },
 
-        show: function (caption, message, url, callback, params, showpassword, postonly) {
+        show: function (caption, message, url, callback, params, showpassword, postonly, checkfiles) {
             this.dlg.show(caption);
             this.postonly = postonly;
+            this.checkfiles = checkfiles;
             if (this.imagelistdiv != null) {
                 this.imagelistdiv.style.display = "none";
                 this.imagelist.clear();
@@ -2459,7 +2591,7 @@ scilligence.Utils = {
 
             var me = this;
             if (this.btn != null) {
-                dojo.connect(this.btn, "onclick", function () { me.show2(); });
+                dojo.connect(this.btn, "onclick", function (e) { me.show2(); e.preventDefault(); });
                 this.btn = null;
             }
 
@@ -2493,7 +2625,20 @@ scilligence.Utils = {
             }
             else {
                 var me = this;
-                scil.Utils.ajaxUploadFile(this.form, this.url, this.params, this.callback);
+                if (this.checkfiles) {
+                    var list = [];
+                    var files = this.files[0].files;
+                    for (var i = 0; i < files.length; ++i)
+                        list.push(files[i].name);
+                    this.checkfiles(list, function (overwrite) {
+                        var args = scil.clone(me.params);
+                        args.overwrite = overwrite;
+                        scil.Utils.ajaxUploadFile(me.form, me.url, args, me.callback);
+                    });
+                }
+                else {
+                    scil.Utils.ajaxUploadFile(me.form, me.url, me.params, me.callback);
+                }
             }
         }
     }),
@@ -2525,21 +2670,23 @@ scilligence.Utils = {
     * @param {dictionary} params - data to be sent
     * @param {bool} chk - reserved
     * @param {bool} multiple - data to be sent
+    * @param {string} showpassword
+    * @param {bool} postonly
     * @returns null
     */
     uploadfileDlg: null,
     uploadfileDlg2: null,
-    uploadFile: function (caption, message, url, callback, params, chk, multiple, showpassword, postonly) {
+    uploadFile: function (caption, message, url, callback, params, chk, multiple, showpassword, postonly, checkfiles) {
         if (multiple) {
             if (this.uploadfileDlg2 == null)
                 this.uploadfileDlg2 = new scil.Utils.UploadFileDlg(true);
-            this.uploadfileDlg2.show(caption, message, url, callback, params, showpassword, postonly);
+            this.uploadfileDlg2.show(caption, message, url, callback, params, showpassword, postonly, checkfiles);
             this.uploadfileDlg2.check = chk;
         }
         else {
             if (this.uploadfileDlg == null)
                 this.uploadfileDlg = new scil.Utils.UploadFileDlg();
-            this.uploadfileDlg.show(caption, message, url, callback, params, showpassword, postonly);
+            this.uploadfileDlg.show(caption, message, url, callback, params, showpassword, postonly, checkfiles);
             this.uploadfileDlg.check = chk;
         }
     },
@@ -2577,20 +2724,28 @@ scilligence.Utils = {
     * @param {dictionary} v - the input jsop object
     * @returns a string
     */
-    json2str: function (v, readable) {
+    json2str: function (v, readable, restrict) {
+        var quot = restrict ? "\"" : "'";
+
         if (v == null)
             return "null";
         if (typeof (v) == "number")
             return v;
         if (typeof (v) == "boolean")
             return v ? "true" : "false";
-        if (typeof (v) == "string")
-            return "'" + v.replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\'/g, "\\'") + "\'";
+        if (typeof (v) == "string") {
+            var s = v.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+            if (quot == "\"")
+                s = s.replace(/\"/g, "\\\"");
+            else
+                s = s.replace(/\'/g, "\\'");
+            return quot + s + quot;
+        }
         if (typeof (v) == "object") {
             if (v.length != null) { // array
                 var s = (readable ? "[ " : "[");
                 for (var i = 0; i < v.length; ++i)
-                    s += (i > 0 ? (readable ? ", " : ",") : "") + this.json2str(v[i], readable);
+                    s += (i > 0 ? (readable ? ", " : ",") : "") + this.json2str(v[i], readable, restrict);
                 s += (readable ? " ]" : "]");
                 return s;
             }
@@ -2608,11 +2763,11 @@ scilligence.Utils = {
                             s += (readable ? ", " : ",");
                     }
 
-                    if (/^[a-z|_]+[0-9|a-z|_]{0,1000}$/.test(k))
+                    if (!restrict && /^[a-z|_]+[0-9|a-z|_]{0,1000}$/.test(k))
                         s += k;
                     else
-                        s += "'" + k + "'";
-                    s += (readable ? ": " : ":") + this.json2str(v[k], readable);
+                        s += quot + k + quot;
+                    s += (readable ? ": " : ":") + this.json2str(v[k], readable, restrict);
                 }
                 s += (readable ? " }" : "}");
                 return s;
@@ -2629,7 +2784,8 @@ scilligence.Utils = {
     },
 
     getMaxZindex2: function (tag) {
-        var zindex = 1;
+        // I#11869
+        var zindex = document.body.className == "mce-fullscreen" ? 101 : 1;
         var list = document.getElementsByTagName(tag);
         for (var i = 0; i < list.length; ++i) {
             if (list[i].style == null || list[i].style.display == "none")
@@ -2769,24 +2925,50 @@ scilligence.Utils = {
     * @param {XmlElement} element
     * @returns a string
     */
-    getInnerXml: function (element) {
-        if (element == null)
+    getInnerXml: function (e) {
+        if (e == null)
             return;
 
-        if (element.innerXML)
-            return element.innerXML;
+        if (e.documentElement != null)
+            e = e.documentElement;
 
-        if (element.xml)
-            return element.xml;
+        if (e.innerXML)
+            return e.innerXML;
 
-        if (typeof XMLSerializer != "undefined")
-            return (new XMLSerializer()).serializeToString(element);
+        if (e.xml)
+            return e.xml;
+
+        if (typeof XMLSerializer != "undefined") {
+            var s = "";
+            for (var i = 0; i < e.childNodes.length; ++i)
+                s += (new XMLSerializer()).serializeToString(e.childNodes[i]);
+            return s;
+        }
 
         return null;
     },
 
     getInnerText: function (e) {
-        return e == null ? null : scil.Utils.trim(e.innerText || e.textContent || e.text);
+        if (e == null)
+            return;
+
+        if (e != null && e.documentElement != null)
+            e = e.documentElement;
+        return scil.Utils.trim(e.innerText || e.textContent || e.text);
+    },
+
+    getChildXmlElements: function (e, tag) {
+        if (e != null && e.documentElement != null)
+            e = e.documentElement;
+        if (e == null)
+            return null;
+
+        var ret = [];
+        for (var i = 0; i < e.childNodes.length; ++i) {
+            if (e.childNodes[i].tagName == tag)
+                ret.push(e.childNodes[i]);
+        }
+        return ret;
     },
 
     num2letter: function (i, lowercase) {
@@ -2839,14 +3021,6 @@ scilligence.Utils = {
             e = e.parentNode;
         }
         return false;
-    },
-
-    isNumber: function (s) {
-        if (typeof (s) == "number")
-            return true;
-        if (s == null || isNaN(s) || isFinite(s))
-            return false;
-        return typeof (s) == "string" && /^[0-9|.]+$/.test(s);
     },
 
     getElements: function (parent, name, ignorecase) {
@@ -3127,10 +3301,21 @@ scilligence.Utils = {
     },
 
     isNumber: function (s, allowoperator) {
+        if (typeof (s) == "number")
+            return true;
         if (scil.Utils.isNullOrEmpty(s))
             return false;
+
+        var p = s.indexOf('.');
+        if (p > 0) {
+            var i = s.indexOf(',');
+            if (i > 0 && i < p)
+                s = s.replace(/[,]/g, '');
+        }
+
+        // I#11086
         if (allowoperator)
-            return new RegExp("^[>|<|≥|≤]?[ ]{0,50}[-]?[0-9]+([\.][0-9]{0,50})?([e|E][-|+][0-9]+)?([ ]{0,50}[±][0-9]+([\.][0-9]{0,50})?)?$").test(s + "");
+            return new RegExp("^[>|<|≥|≤]?[ ]{0,50}[-]?[0-9]+([\.][0-9]{0,50})?([e|E][-|+][0-9]+)?([ ]{0,50}[±][0-9]{0,50}([\.][0-9]{0,50})?)?$").test(s + "");
         else
             return !isNaN(s);
     },
@@ -3156,20 +3341,43 @@ scilligence.Utils = {
         return isNaN(n) ? null : n;
     },
 
+    /**
+    * Test if it is null or empty string
+    * @function {static} isNullOrEmpty
+    * @param {var} s - var to be tested
+    * @returns bool
+    */
     isNullOrEmpty: function (s) {
         return s == null || typeof (s) == "string" && s == "";
     },
 
+    /**
+    * Test if it is not a number
+    * @function {static} isNaN
+    * @param {var} n - var to be tested
+    * @returns bool
+    */
     isNaN: function (n) {
         return n == null || isNaN(n);
     },
 
+    /**
+    * Get outer xml of an XML element
+    * @function {static} getOuterXml
+    * @param {XMLElement} e
+    * @returns a string
+    */
     getOuterXml: function (e) {
         if (e == null)
             return null;
         return e.xml != null ? e.xml : (new XMLSerializer()).serializeToString(e);
     },
 
+    /**
+    * Add css script in a page
+    * @function {static} addCss
+    * @param {string} code - css script
+    */
     addCss: function (code) {
         var style = document.createElement('style');
         style.type = 'text/css';
@@ -3185,6 +3393,13 @@ scilligence.Utils = {
         document.getElementsByTagName("head")[0].appendChild(style);
     },
 
+    /**
+    * Insert all items of a dirctionary in another dictionary
+    * @function {static} insertAfterDict
+    * @param {dict} dict - destination
+    * @param {dict} items - items to be inserted
+    * @param {string} key - reference item
+    */
     insertAfterDict: function (dict, items, key) {
         var found = false;
 
@@ -3206,6 +3421,13 @@ scilligence.Utils = {
             dict[k] = temp[k];
     },
 
+    /**
+    * Insert all items of a dirctionary in another dictionary
+    * @function {static} insertBeforeDict
+    * @param {dict} dict - destination
+    * @param {dict} items - items to be inserted
+    * @param {string} key - reference item
+    */
     insertBeforeDict: function (dict, items, key) {
         var found = false;
 
@@ -3225,8 +3447,21 @@ scilligence.Utils = {
             dict[k] = temp[k];
     },
 
+    disableSelection: function (d) {
+        if (d == null)
+            return;
+
+        scil.apply(d.style, {
+            webkitTouchCallout: "none", /* iOS Safari */
+            webkitUserSelect: "none", /* Chrome */
+            mozUserSelect: "none", /* Firefox */
+            msUserSelect: "none", /* IE/Edge */
+            userSelect: "none"
+        });
+    },
+
     getLastBarcode: function (callback, category, email, url) {
-        scil.Utils.jsonp(url != null ? url : "JSDraw/Service.aspx?cmd=mobile.getlastbarcode", function (ret) {
+        scil.Utils.jsonp(url != null ? url : "JSDraw/Service.aspx?cmd=mobile.getlast", function (ret) {
             callback(ret);
         }, { category: category, useremail: email });
     },
@@ -3267,7 +3502,13 @@ scilligence.Utils = {
         }
     },
 
-    fireEvent: function (element, eventname, bubbles, cancelable) {
+    /**
+    * Fire an event
+    * @function {static} fireEvent
+    * @param {DOM} element
+    * @param {string} eventname
+    */
+    fireEvent: function (element, eventname, bubbles, cancelable, args) {
         var event; // The custom event that will be created
 
         if (document.createEvent) {
@@ -3278,6 +3519,9 @@ scilligence.Utils = {
             event.eventType = eventname;
         }
 
+        if (args != null)
+            scil.apply(event, args);
+
         event.eventName = eventname;
 
         if (document.createEvent) {
@@ -3285,6 +3529,18 @@ scilligence.Utils = {
         } else {
             element.fireEvent("on" + event.eventType, event);
         }
+    },
+
+    sum: function (list) {
+        return scil.Math.sum(list);
+    },
+
+    avg: function (list) {
+        return scil.Math.avg(list);
+    },
+
+    stdev: function (list) {
+        return scil.Math.stdev(list);
     }
 };
 
@@ -3292,10 +3548,11 @@ scil.form = {};
 JsUtils = scil.Utils;
 scil.Utils.padleft = scil.Utils.padLeft;
 scil.Utils.padright = scil.Utils.padRight;
+
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2017 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -3304,7 +3561,7 @@ scil.Utils.padright = scil.Utils.padRight;
 
 /**
 @project JSDraw
-@version 5.1.0
+@version 5.3.1
 @description JSDraw Chemical/Biological Structure Editor
 */
 
@@ -3322,7 +3579,7 @@ JSDraw2.speedup = { fontsize: 4, gap: 0, disableundo: false, minbondlength: 1 };
 * JSDraw Version
 * @property scilligence.JSDraw2.version
 */
-JSDraw2.version = "JSDraw V5.1.0";
+JSDraw2.version = "JSDraw V5.3.1";
 
 // JSDraw file version
 JSDraw2.kFileVersion = "5.0";
@@ -3667,6 +3924,7 @@ JSDraw2.Atom = scil.extend(scil._base, {
         this.rgroup = null;
         this.bio = bio;
         this.locked = false;
+        this.hidden = null;
         this._rect = null;
         if (bio == null) {
             if (elem == null || elem.length == 0) {
@@ -3720,7 +3978,12 @@ JSDraw2.Atom = scil.extend(scil._base, {
         a.val = this.val;
         if (this.query != null)
             a.query = scil.clone(this.query);
+        if (this.bio != null)
+            a.bio = scil.clone(this.bio);
         a.locked = this.locked;
+        a.hidden = this.hidden;
+        a.ratio = this.ratio;
+        a.selected = this.selected;
         return a;
     },
 
@@ -3808,6 +4071,8 @@ JSDraw2.Atom = scil.extend(scil._base, {
                 s += " ann='" + scil.Utils.escXmlValue(this.bio.annotation) + "'";
             if (this.elem == "?" && !scil.Utils.isNullOrEmpty(this.bio.ambiguity))
                 s += " amb='" + scil.Utils.escXmlValue(this.bio.ambiguity) + "'";
+            if (this.biotype() == org.helm.webeditor.HELM.BLOB && !scil.Utils.isNullOrEmpty(this.bio.blobtype))
+                s += " blobtype='" + scil.Utils.escXmlValue(this.bio.blobtype) + "'";
         }
 
         if (this.rgroup == null && this.superatom == null) {
@@ -3925,6 +4190,10 @@ JSDraw2.Atom = scil.extend(scil._base, {
             var amb = e.getAttribute("amb");
             if (this.elem == "?" && !scil.Utils.isNullOrEmpty(amb))
                 this.bio.ambiguity = amb;
+
+            var blobtype = e.getAttribute("blobtype");
+            if (this.biotype() == org.helm.webeditor.HELM.BLOB && !scil.Utils.isNullOrEmpty(blobtype))
+                this.bio.blobtype = blobtype;
         }
 
         if (this.elem != null) {
@@ -4676,13 +4945,13 @@ JSDraw2.BA = scilligence.extend(scilligence._base, {
 });
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
-// JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// JSDraw
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
 //
-// (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
-//
 //////////////////////////////////////////////////////////////////////////////////
+
+
 
 /**
 * Base64 class provide base64 encode/decode functions
@@ -4769,6 +5038,56 @@ JSDraw2.Base64 = {
         }
         output = JSDraw2.Base64._utf8_decode(output);
         return output;
+    },
+
+    // private method for UTF-8 encoding
+    _utf8_encode: function (string) {
+        string = string.replace(/\r\n/g, "\n");
+        var utftext = "";
+
+        for (var n = 0; n < string.length; n++) {
+            var c = string.charCodeAt(n);
+            if (c < 128) {
+                utftext += String.fromCharCode(c);
+            }
+            else if ((c > 127) && (c < 2048)) {
+                utftext += String.fromCharCode((c >> 6) | 192);
+                utftext += String.fromCharCode((c & 63) | 128);
+            }
+            else {
+                utftext += String.fromCharCode((c >> 12) | 224);
+                utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+                utftext += String.fromCharCode((c & 63) | 128);
+            }
+        }
+        return utftext;
+    },
+
+    // private method for UTF-8 decoding
+    _utf8_decode: function (utftext) {
+        var string = "";
+        var i = 0;
+        var c = c1 = c2 = 0;
+
+        while (i < utftext.length) {
+            c = utftext.charCodeAt(i);
+            if (c < 128) {
+                string += String.fromCharCode(c);
+                i++;
+            }
+            else if ((c > 191) && (c < 224)) {
+                c2 = utftext.charCodeAt(i + 1);
+                string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+                i += 2;
+            }
+            else {
+                c2 = utftext.charCodeAt(i + 1);
+                c3 = utftext.charCodeAt(i + 2);
+                string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+                i += 3;
+            }
+        }
+        return string;
     }
 };﻿//////////////////////////////////////////////////////////////////////////////////
 //
@@ -4822,6 +5141,8 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         this.f = null;
         this.r1 = null;
         this.r2 = null;
+        this.ratio1 = null;
+        this.ratio2 = null;
         this.type = type == null ? JSDraw2.BONDTYPES.SINGLE : type;
     },
 
@@ -4837,7 +5158,11 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         b._parent = this.parent;
         b.r1 = this.r1;
         b.r2 = this.r2;
+        b.ratio1 = this.ratio1;
+        b.ratio2 = this.ratio2;
+        b.z = this.z;
         b.tag = this.tag;
+        b.selected = this.selected;
         return b;
     },
 
@@ -5005,7 +5330,7 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
     },
 
     toggle: function (p, tor) {
-        return p.onLine(this.a1.p, this.a2.p, tor / 2);
+        return p.onLine(this.a1.p, this.a2.p, tor / 5);
     },
 
     drawCur: function (surface, r, color) {
@@ -5024,7 +5349,7 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         }
     },
 
-    getRColor: function(c, r){
+    getRColor: function (c, r) {
         if (!scil.Utils.isNullOrEmpty(this.color))
             return c;
         switch (r) {
@@ -5036,6 +5361,62 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
                 return "#aaaaaa";
         }
         return "black";
+    },
+
+    _fmtBondAnn: function (r, ratio) {
+        var s = "";
+
+        if (!scil.Utils.isNullOrEmpty(r) && r != "?" && r != "?:?") {
+            s = r + "";
+            var p = s.indexOf(':');
+            if (p > 0)
+                s = "Pos: " + s.substr(0, p) + "; R#: " + s.substr(p + 1);
+        }
+
+        if (!scil.Utils.isNullOrEmpty(ratio))
+            s += (s == "" ? "" : "; ") + "Ratio: " + ratio;
+
+        return s;
+    },
+
+    drawBondAnnotation: function (surface, fontsize, b) {
+        var ba1 = this._fmtBondAnn(this.r1, this.ratio1);
+        var ba2 = this._fmtBondAnn(this.r2, this.ratio2);
+
+        if (ba1 == "" || ba2 == "")
+            return;
+
+        var dx = (b.p1.x - b.p2.x) / 90;
+        var dy = (b.p1.y - b.p2.y) / 90;
+        var c1 = new JSDraw2.Point((b.p1.x + b.p2.x) / 2, (b.p1.y + b.p2.y) / 2);
+        var c2 = c1.clone();
+
+        if (Math.abs(b.a1.p.x - b.a2.p.x) < fontsize) {
+            //vertical
+            c1.offset(fontsize * dx + fontsize * 0.2, fontsize * dy - fontsize * 0.5);
+            c2.offset(-fontsize * dx + fontsize * 0.2, -fontsize * dy - fontsize * 0.5);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawText(surface, c1, ba1, "green", fontsize);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawText(surface, c2, ba2, "green", fontsize);
+        }
+        else if (Math.abs(b.a1.p.y - b.a2.p.y) < fontsize) {
+            //horizontal
+            c1.offset(fontsize * dx, fontsize * dy - fontsize * 0.9);
+            c2.offset(-fontsize * dx, -fontsize * dy + fontsize * 0.6);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawLabel(surface, c1, ba1, "green", fontsize, null, null, null, false);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawLabel(surface, c2, ba2, "green", fontsize, null, null, null, false);
+        }
+        else {
+            c1.offset(fontsize * dx, fontsize * dy);
+            c2.offset(-fontsize * dx, -fontsize * dy);
+            if (!scil.Utils.isNullOrEmpty(ba1))
+                JSDraw2.Drawer.drawLabel(surface, c1, ba1, "green", fontsize, null, null, null, false);
+            if (!scil.Utils.isNullOrEmpty(ba2))
+                JSDraw2.Drawer.drawLabel(surface, c2, ba2, "green", fontsize, null, null, null, false);
+        }
     },
 
     draw: function (surface, linewidth, m, fontsize, simpledraw) {
@@ -5074,14 +5455,27 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
             var c = new JSDraw2.Point((b.p1.x + b.p2.x) / 2, (b.p1.y + b.p2.y) / 2);
             var color1 = this.getRColor(this.color, this.r1);
             var color2 = this.getRColor(this.color, this.r2);
-            JSDraw2.Drawer.drawLine(surface, b.p1, c, color1, linewidth, null, "butt");
-            JSDraw2.Drawer.drawLine(surface, c, b.p2, color2, linewidth, null, "butt");
-            if (this.r1 == 1 && this.r2 == 2 || this.r1 == 2 && this.r2 == 1) {
-                JSDraw2.Bond.showHelmAnnotation(this.a1, this.a2, this.r1);
-                JSDraw2.Bond.showHelmAnnotation(this.a2, this.a1, this.r2);
+            if (this.z) {
+                var p1 = new JSDraw2.Point(b.p1.x, c.y);
+                var p2 = new JSDraw2.Point(b.p2.x, c.y);
+                JSDraw2.Drawer.drawLine(surface, b.p1, p1, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, p1, c, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, c, p2, color2, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, p2, b.p2, color2, linewidth, null, "butt");
+            }
+            else {
+                JSDraw2.Drawer.drawLine(surface, b.p1, c, color1, linewidth, null, "butt");
+                JSDraw2.Drawer.drawLine(surface, c, b.p2, color2, linewidth, null, "butt");
+                if (this.r1 == 1 && this.r2 == 2 || this.r1 == 2 && this.r2 == 1) {
+                    JSDraw2.Bond.showHelmAnnotation(this.a1, this.a2, this.r1);
+                    JSDraw2.Bond.showHelmAnnotation(this.a2, this.a1, this.r2);
+                }
             }
             return;
         }
+
+        if (!simpledraw)
+            this.drawBondAnnotation(surface, fontsize, b);
 
         var dir = 8;
         if (b.type == JSDraw2.BONDTYPES.DOUBLE || b.type == JSDraw2.BONDTYPES.DELOCALIZED || b.type == JSDraw2.BONDTYPES.EITHER || b.type == JSDraw2.BONDTYPES.DOUBLEORAROMATIC)
@@ -5380,7 +5774,7 @@ JSDraw2.JSDrawIO = {
 
     jsdFileSave: function (jsd) {
         if (JSDraw2.JSDrawIO.jsdsavedlg == null) {
-            var div = scil.Utils.createElement(null, "div", this.res("Please select a chemistry file: "), { width: "350px", margin: "10px" });
+            var div = scil.Utils.createElement(null, "div", this.res("Please select the file format to be saved: "), { width: "420px", margin: "10px" });
             var sel = scil.Utils.createElement(div, "select");
             scil.Utils.createElement(sel, "option");
             if (JSDraw2.Security.kEdition == "Lite") {
@@ -5395,8 +5789,10 @@ JSDraw2.JSDrawIO = {
                 scil.Utils.listOptions(sel, JSDraw2.JSDrawIO.jsdFiles, null, false);
 
             var s = scil.Utils.createElement(div, "div", null, { marginTop: "20px", textAlign: "center" });
-            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>" + this.res("Save File") + "...");
-            dojo.connect(btn, "onclick", function (e) { JSDraw2.JSDrawIO.jsdFileSave2(); e.preventDefault(); });
+            scil.Utils.createButton(s, { src: scil.App.imgSmall("submit.png"), label: "Save File", onclick: function (e) { JSDraw2.JSDrawIO.jsdFileSave2(); e.preventDefault(); } });
+            scil.Utils.createButton(s, "&nbsp;");
+            scil.Utils.createButton(s, { src: scil.App.imgSmall("cancel.png"), label: "Cancel", onclick: function (e) { JSDraw2.JSDrawIO.jsdsavedlg.hide(); e.preventDefault(); } });
+
             JSDraw2.JSDrawIO.jsdsavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>" + this.res("Save File"), div);
             JSDraw2.JSDrawIO.jsdsavedlg.sel = sel;
         }
@@ -5601,22 +5997,22 @@ JSDraw2.JSDrawIO = {
             check.disabled = true;
         }
         var structurecolumn = jss.options.structurecolumn == null ? "" : jss.options.structurecolumn;
-        scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>Open File",
-            "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
+        scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
+            this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
             function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jss, ret); }, { structurecolumn: structurecolumn }, check);
 
         if (this.needCrossdomain()) {
             var url = JSDrawServices.url + "?cmd=";
             scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
-                "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles)",
+                this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles)",
                 url + "xdomain.post", function (xfilename) {
                     scil.Utils.jsonp(url + "openjss", function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jsd, ret); },
                     { _xfilename: xfilename, structurecolumn: structurecolumn });
                 }, null, null, null, null, true);
         }
         else {
-            scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>Open File",
-                "Please select a file (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
+            scil.Utils.uploadFile("<img src='" + scil.Utils.imgSrc("img/open.gif") + "'>" + this.res("Open File"),
+                this.res("Please select a file") + " (*.sdf,*.rdf,*.xls,*.csv,*.smiles):", JSDrawServices.url + "?cmd=openjss",
                 function (ret) { JSDraw2.JSDrawIO.jssFileOpen2(jss, ret); }, { structurecolumn: structurecolumn }, check);
         }
     },
@@ -5633,15 +6029,15 @@ JSDraw2.JSDrawIO = {
 
     jssFileSave: function (jss) {
         if (JSDraw2.JSDrawIO.jsssavedlg == null) {
-            var div = scil.Utils.createElement(null, "div", "Please select a file type:", { width: "350px", margin: "10px" });
+            var div = scil.Utils.createElement(null, "div", this.res("Please select a file type") + ":", { width: "350px", margin: "10px" });
             var sel = scil.Utils.createElement(div, "select");
             scil.Utils.createElement(sel, "option");
             scil.Utils.listOptions(sel, JSDraw2.JSDrawIO.jssFiles, null, false);
 
             var s = scil.Utils.createElement(div, "div", null, { marginTop: "20px", textAlign: "center" });
-            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>Save ...");
+            var btn = scil.Utils.createElement(s, "button", "<img src='" + scil.App.imgSmall("submit.png") + "'>" + this.res("Save"));
             dojo.connect(btn, "onclick", function (e) { JSDraw2.JSDrawIO.jssFileSave2(); e.preventDefault(); });
-            JSDraw2.JSDrawIO.jsssavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>Save File", div);
+            JSDraw2.JSDrawIO.jsssavedlg = new JSDraw2.Dialog("<img src='" + scil.App.imgSmall("save.png") + "'>" + this.res("Save File"), div);
             JSDraw2.JSDrawIO.jsssavedlg.sel = sel;
         }
         JSDraw2.JSDrawIO.jsssavedlg.jss = jss;
@@ -5817,8 +6213,9 @@ JSDraw2.Mol = scil.extend(scil._base, {
     */
     clone: function (selectedOnly) {
         var m = new JSDraw2.Mol();
+        m.bondlength = this.bondlength;
         m.name = this.name;
-        m.chiral = this.chrial;
+        m.chiral = this.chiral;
         m.props = scil.clone(this.props);
         m.showimplicithydrogens = this.showimplicithydrogens;
         m.mw = this.mw;
@@ -5882,6 +6279,11 @@ JSDraw2.Mol = scil.extend(scil._base, {
                     if (a.group == g)
                         map[a.id].group = g1;
                 }
+                if (g.a != null)
+                    g1.a = map[g.a.id];
+
+                if (g.group != null)
+                    g1.group = map[g.group.id];
             }
             else if (JSDraw2.Bracket.cast(g) != null) {
                 g1.atoms = this._getMappedArray(g.atoms, map);
@@ -6286,7 +6688,8 @@ JSDraw2.Mol = scil.extend(scil._base, {
 
         if (a.elem != "R" && a.alias != null && a.alias != "") {
             if (a.superatom == null) {
-                error = true;
+                if (a.elem != "#")
+                    error = true;
             }
             else if (a.superatom != null) {
                 var bonds = this.getNeighborBonds(a, true);
@@ -6448,12 +6851,14 @@ JSDraw2.Mol = scil.extend(scil._base, {
     * @function cleanupRxn
     * @returns null
     */
-    cleanupRxn: function () {
+    cleanupRxn: function (defaultbondlength) {
         var rxn = this.parseRxn(true);
         if (rxn == null || rxn.reactants.length == 1 && rxn.products.length == 0 && rxn.arrow == null)
             return false;
 
         var bondlength = this.medBondLength();
+        if (!(bondlength > 0))
+            bondlength = defaultbondlength > 0 ? defaultbondlength : JSDraw2.Editor.BONDLENGTH;
         return this._layoutRxn(rxn, bondlength);
     },
 
@@ -6468,6 +6873,11 @@ JSDraw2.Mol = scil.extend(scil._base, {
         var y = null;
         for (var i = 0; i < rxn.reactants.length; ++i) {
             var r = rxn.reactants[i].rect();
+            if (r.width == 0)
+                r.inflate(bondlength, 0);
+            if (r.height == 0)
+                r.inflate(0, bondlength);
+
             if (x == null) {
                 x = r.right();
                 y = r.center().y;
@@ -6551,6 +6961,11 @@ JSDraw2.Mol = scil.extend(scil._base, {
 
         for (var i = 0; i < rxn.products.length; ++i) {
             var r = rxn.products[i].rect();
+            if (r.width == 0)
+                r.inflate(bondlength, 0);
+            if (r.height == 0)
+                r.inflate(0, bondlength);
+
             if (x == null) {
                 x = r.right();
                 y = r.center().y;
@@ -6582,7 +6997,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
 
     /**
     * Return the center coorindate of all objects
-    * @function cleanupRxn
+    * @function center
     * @returns the center as a Point object
     */
     center: function () {
@@ -6595,18 +7010,34 @@ JSDraw2.Mol = scil.extend(scil._base, {
     * @param {Group} g - the input group
     * @returns a Rect object
     */
-    getGroupRect: function (g) {
+    getGroupRect: function (g, bondlength) {
         var r = null;
         for (var i = 0; i < this.atoms.length; ++i) {
-            if (this.atoms[i].group != g)
+            var a = this.atoms[i];
+            if (a.group != g || a.hidden)
                 continue;
 
-            var p = this.atoms[i].p;
+            var p = a.p;
             if (r == null)
                 r = new JSDraw2.Rect(p.x, p.y, 0, 0);
             else
                 r.unionPoint(p);
         }
+
+        for (var i = 0; i < this.graphics.length; ++i) {
+            var g2 = this.graphics[i];
+            if (g2.group != g)
+                continue;
+
+            var rect = JSDraw2.Group.cast(g2) != null ? this.getGroupRect(g2, bondlength) : g2.rect();
+            if (r == null)
+                r = rect.clone();
+            else
+                r.union(rect);
+        }
+
+        if (r != null && g.gap > 0)
+            r.inflate(g.gap * bondlength / 15.0, g.gap * bondlength / 15.0);
         return r;
     },
 
@@ -6645,13 +7076,22 @@ JSDraw2.Mol = scil.extend(scil._base, {
             return r;
         }
 
-        var x1 = this.atoms[0].p.x;
-        var y1 = this.atoms[0].p.y;
-        var x2 = x1;
-        var y2 = y1;
+        var x1 = null;
+        var y1 = null;
+        var x2 = null;
+        var y2 = null;
 
-        for (var i = 1; i < this.atoms.length; ++i) {
-            var p = this.atoms[i].p;
+        for (var i = 0; i < this.atoms.length; ++i) {
+            var a = this.atoms[i];
+            if (a.hidden)
+                continue;
+
+            var p = a.p;
+            if (x1 == null) {
+                x1 = x2 = p.x;
+                y1 = y2 = p.y;
+                continue;
+            }
 
             if (p.x < x1)
                 x1 = p.x;
@@ -6665,8 +7105,12 @@ JSDraw2.Mol = scil.extend(scil._base, {
         }
 
         var r = new JSDraw2.Rect(x1, y1, x2 - x1, y2 - y1);
-        for (var i = 0; i < this.graphics.length; ++i)
-            r.union(this.graphics[i].rect());
+        for (var i = 0; i < this.graphics.length; ++i) {
+            var g = this.graphics[i];
+            if (JSDraw2.Group.cast(g) != null)
+                continue;
+            r.union(g.rect());
+        }
 
         if (!withoutRgroups) {
             for (var i = 0; i < this.atoms.length; ++i) {
@@ -6763,6 +7207,19 @@ JSDraw2.Mol = scil.extend(scil._base, {
     },
 
     delGraphics: function (obj) {
+        var group = JSDraw2.Group.cast(obj);
+        if (group != null) {
+            for (var i = 0; i < this.atoms.length; ++i) {
+                if (this.atoms[i].group == group)
+                    this.atoms[i].group = null;
+            }
+
+            for (var i = 0; i < this.graphics.length; ++i) {
+                if (this.graphics[i].group == group)
+                    this.graphics[i].group = null;
+            }
+        }
+
         for (var i = 0; i < this.graphics.length; ++i) {
             if (this.graphics[i] == obj) {
                 this.graphics.splice(i, 1);
@@ -7085,6 +7542,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
         if (a.alias == alias)
             return false;
 
+        var elem = "*";
         var m = JSDraw2.SuperAtoms.get(alias);
         if (m == null) {
             var alias2 = alias.replace(/^[\+|\-]/, "").replace(/[\+|\-]$/, "");
@@ -7099,9 +7557,16 @@ JSDraw2.Mol = scil.extend(scil._base, {
             else {
                 // leading O or S
                 var list = this.getNeighborBonds(a);
-                m = JSDraw2.FormulaParser.parse(alias, list == null || list.length == 0 || list.length == 1 && list[0].type == JSDraw2.BONDTYPES.DUMMY, list.length);
+                var orphan = list == null || list.length == 0 || list.length == 1 && list[0].type == JSDraw2.BONDTYPES.DUMMY;
+                m = JSDraw2.FormulaParser.parse(alias, orphan, list.length);
                 if (m != null && m.atoms.length == 0)
                     return this.setAtomType(a, m.atoms[0].elem);
+
+                if (orphan) {
+                    var salt = JSDraw2.FormulaParser.parseSalt(alias);
+                    if (salt != null)
+                        elem = "#";
+                }
             }
         }
 
@@ -7117,11 +7582,12 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 JSDraw2.SuperAtoms._alignMol(a._parent, a, m, attach, len != null ? len : this.medBondLength(1.56));
             a.superatom = m;
             a.rgroup = null;
-            a.elem = "*";
+            a.elem = elem;
         }
         else {
             if (!scil.Utils.isNullOrEmpty(alias))
-                a.elem = "*";
+                a.elem = elem;
+
             if (a.elem == "R")
                 a.updateRGroup();
             else
@@ -7392,22 +7858,32 @@ JSDraw2.Mol = scil.extend(scil._base, {
             }
         }
         else {
-            for (var i = 0; i < this.graphics.length; ++i)
-                this.graphics[i].draw(surface, linewidth, this, fontsize);
-
             for (var i = 0; i < this.atoms.length; ++i) {
                 var a = this.atoms[i];
                 a._outside = a.p.x < -JSDraw2.speedup.gap || a.p.x > dimension.x + JSDraw2.speedup.gap || a.p.y < -JSDraw2.speedup.gap || a.p.y > dimension.y + JSDraw2.speedup.gap;
                 a._haslabel = a.hasLabel(this, showcarbon);
             }
 
+            // draw bonds connect to hidden group atom
+            var bonds = [];
             for (var i = 0; i < this.bonds.length; ++i) {
                 var b = this.bonds[i];
-                if (b.a1._outside && b.a2._outside)
+                if (b.a1._outside && b.a2._outside && !b.a1.hidden && !b.a2.hidden)
                     continue;
-                if (!simpledraw || !b.selected)
-                    b.draw(surface, linewidth, this, fontsize, simpledraw);
+
+                if (!simpledraw || !b.selected) {
+                    if (this.moveHiddenAtomToGroupBorder(b.a1, b.a2) || this.moveHiddenAtomToGroupBorder(b.a2, b.a1))
+                        b.draw(surface, linewidth, this, fontsize, simpledraw);
+                    else
+                        bonds.push(b);
+                }
             }
+
+            for (var i = 0; i < this.graphics.length; ++i)
+                this.graphics[i].draw(surface, linewidth, this, fontsize);
+
+            for (var i = 0; i < bonds.length; ++i)
+                bonds[i].draw(surface, linewidth, this, fontsize, simpledraw);
 
             var tor = linewidth * 2;
             if (simpledraw) {
@@ -7449,9 +7925,106 @@ JSDraw2.Mol = scil.extend(scil._base, {
             }
 
             this.drawSelect(new JSDraw2.Lasso(surface, linewidth * (simpledraw ? 5 : 1), false), simpledraw);
-            if (this.chiral)
-                JSDraw2.Drawer.drawText(surface, new JSDraw2.Point(dimension.x - fontsize * 5, fontsize * 1), "[Chiral]", "gray", fontsize);
+
+            var s = null;
+            if (this.chiral == "and")
+                s = "[AND Enantiomer]";
+            else if (this.chiral == "or")
+                s = "[OR Enantiomer]";
+
+            if (s != null)
+                JSDraw2.Drawer.drawText(surface, new JSDraw2.Point(dimension.x - fontsize * 4, fontsize * 1), s, "gray", fontsize, "right");
         }
+    },
+
+    moveHiddenAtomToGroupBorder: function (a, a2) {
+        if (!a.hidden)
+            return false;
+
+        var g = this._findGroup(a);
+        if (g == null)
+            return false;
+
+        var r = g.rect();
+        if (!a2.hidden) {
+            // group to atom: use the closest border
+            var p = a2.p;
+            if (p.x < r.left)
+                a.p.x = r.left;
+            else if (p.x > r.right())
+                a.p.x = r.right();
+            else
+                a.p.x = p.x;
+
+            if (p.y < r.top)
+                a.p.y = r.top;
+            else if (p.y > r.bottom())
+                a.p.y = r.bottom();
+            else
+                a.p.y = p.y;
+
+            a._outside = false;
+        }
+        else {
+            // group to group
+            var g2 = this._findGroup(a2);
+            if (g2 == null)
+                return false;
+
+            var r2 = g2.rect();
+            if (r.left >= r2.left && r.left <= r2.right() || r.right() >= r2.left && r.right() <= r2.right() || r2.left >= r.left && r2.left <= r.right() || r2.right() >= r.left && r2.right() <= r.right()) {
+                // vertically overlapped: vertical center
+                var x = (Math.max(r.left, r2.left) + Math.min(r.right(), r2.right())) / 2;
+                a.p.x = a2.p.x = x;
+                a.p.y = r.bottom() < r2.top ? r.bottom() : r.top;
+                a2.p.y = r2.top > r.bottom() ? r2.top : r2.bottom();
+            }
+            else if (r.top >= r2.top && r.top <= r2.bottom() || r.bottom() >= r2.top && r.bottom() <= r2.bottom() || r2.top >= r.top && r2.top <= r.bottom() || r2.bottom() >= r.top && r2.bottom() <= r.bottom()) {
+                // horizontally overlapped: horizontal center
+                var y = (Math.max(r.top, r2.top) + Math.min(r.bottom(), r2.bottom())) / 2;
+                a.p.y = a2.p.y = y;
+                a.p.x = r.right() < r2.left ? r.right() : r.left;
+                a2.p.x = r2.left > r.right() ? r2.left : r2.right();
+            }
+            else {
+                // then corner to corner
+                if (r.right() < r2.left) {
+                    if (r.bottom() < r2.top) {
+                        a.p = r.bottomright();
+                        a2.p = r2.topleft();
+                    }
+                    else {
+                        a.p = r.topright();
+                        a2.p = r2.bottomleft();
+                    }
+                }
+                else {
+                    if (r.bottom() < r2.top) {
+                        a.p = r.bottomleft();
+                        a2.p = r2.topright();
+                    }
+                    else {
+                        a.p = r.topleft();
+                        a2.p = r2.bottomright();
+                    }
+                }
+            }
+
+            a._outside = false;
+            a2._outside = false;
+        }
+
+        return true;
+    },
+
+    _findGroup: function (a) {
+        for (var i = 0; i < this.graphics.length; ++i) {
+            var g = JSDraw2.Group.cast(this.graphics[i]);
+            if (g != null && g.a == a)
+                return g;
+        }
+
+        return null;
     },
 
     drawSelect: function (lasso, simpledraw) {
@@ -7594,7 +8167,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
         var natoms = parseFloat(lines[start].substr(0, 3));
         var nbonds = parseFloat(lines[start].substr(3, 3));
         var chiral = lines[start].substr(12, 3);
-        this.chiral = chiral == "  1";
+        //this.chiral = chiral == "  1";
         if (isNaN(natoms) || isNaN(nbonds))
             return null;
         ++start;
@@ -8116,6 +8689,10 @@ JSDraw2.Mol = scil.extend(scil._base, {
             }
         }
 
+        if (JSDraw2.defaultoptions.and_enantiomer) {
+            if (this.hasStereoCenter() && chiral == "  0")
+                this.chiral = "and";
+        }
         return this;
     },
 
@@ -8173,29 +8750,30 @@ JSDraw2.Mol = scil.extend(scil._base, {
 
     getSubMol: function (atoms) {
         var m = this;
-        var set = { atoms: [], bonds: [], openbonds: [] };
+        var set = { atoms: scil.clone(atoms), bonds: [], openbonds: [] };
         for (var j = 0; j < m.bonds.length; ++j) {
             var b = m.bonds[j];
             var f1 = scil.Utils.indexOf(atoms, b.a1) >= 0;
             var f2 = scil.Utils.indexOf(atoms, b.a2) >= 0;
             if (f1 && f2) {
-                if (scil.Utils.indexOf(set.atoms, b.a1) < 0)
-                    set.atoms.push(b.a1);
-                if (scil.Utils.indexOf(set.atoms, b.a2) < 0)
-                    set.atoms.push(b.a2);
+                //if (scil.Utils.indexOf(set.atoms, b.a1) < 0)
+                //    set.atoms.push(b.a1);
+                //if (scil.Utils.indexOf(set.atoms, b.a2) < 0)
+                //    set.atoms.push(b.a2);
                 set.bonds.push(b);
             }
             else if (f1) {
-                if (scil.Utils.indexOf(set.atoms, b.a1) < 0)
-                    set.atoms.push(b.a1);
+                //if (scil.Utils.indexOf(set.atoms, b.a1) < 0)
+                //    set.atoms.push(b.a1);
                 set.openbonds.push({ b: b, oa: b.a2 });
             }
             else if (f2) {
-                if (scil.Utils.indexOf(set.atoms, b.a2) < 0)
-                    set.atoms.push(b.a2);
+                //if (scil.Utils.indexOf(set.atoms, b.a2) < 0)
+                //    set.atoms.push(b.a2);
                 set.openbonds.push({ b: b, oa: b.a1 });
             }
         }
+
         return set;
     },
 
@@ -8328,14 +8906,17 @@ JSDraw2.Mol = scil.extend(scil._base, {
         if (rgroups != null)
             this._getRgroups(rgroups);
 
-        var len = this.medBondLength();
+        var len = this.bondlength > 0 ? this.bondlength : this.medBondLength();
         var scale = len > 0 ? (1.56 / len) : 1.0;
 
         var s = "";
         s += scil.Utils.formatStr(this.atoms.length, 3, 0);
         s += scil.Utils.formatStr(this.bonds.length, 3, 0);
         s += "  0  0";
-        s += this.chiral ? "  1" : "  0";
+        if (this.hasStereoCenter() && this.chiral != "and")
+            s += "  1";
+        else
+            s += "  0";
         s += "  0              0 V2000\n";
 
         var isotopes = "";
@@ -8621,7 +9202,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 sgroupdata += this.writeList("M  SAL " + scil.Utils.formatStr(k, 3, 0), bracketatoms, "id", 4, 8);
                 sgroupdata += this.writeList("M  SBL " + scil.Utils.formatStr(k, 3, 0), bracketbonds, "id", 4, 8);
 
-                if (!scil.Utils.isNullOrEmpty(sgroup.subscript))
+                if (!scil.Utils.isNullOrEmpty(sgroup.subscript) && /* I#10773 */!(type == "MUL" && sgroup.subscript == "mul"))
                     sgroupdata += "M  SMT   1 " + sgroup.subscript + "\n";
 
                 atoms = br.atoms;
@@ -8656,11 +9237,16 @@ JSDraw2.Mol = scil.extend(scil._base, {
             if (t == null)
                 continue;
 
+            var k = id.k;
             var sgroup = { sty: "", spl: "", data: "", id: id };
             this.getDataGroup(t.text, t.fieldtype, t._rect.left * scale, -t._rect.top * scale, null, sgroup);
             sgroupdata += "M  STY" + scil.Utils.formatStr(sgroup.sty.length / 8, 3, 0) + sgroup.sty + "\n";
 
-            var k = ++id.k;
+            // I#11604
+            if (id.k == k)
+                ++id.k;
+            k = id.k;
+
             var sal = "";
             var sbl = "";
             for (var j = 0; j < t.anchors.length; ++j) {
@@ -8721,7 +9307,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
     },
 
     getMolV3000: function (rxn) {
-        var len = this.medBondLength();
+        var len = this.bondlength > 0 ? this.bondlength : this.medBondLength();
         var scale = len > 0 ? (1.56 / len) : 1.0;
         this.resetIds();
 
@@ -8731,7 +9317,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
         var s = '';
         if (!rxn) {
             s += (this.name == null ? "" : this.name) + '\n';
-            s += "   JSDraw2" + scil.Utils.formatStr(dt.getMonth() + 1, 2, 0).replace(' ', '0') +
+            s += "   JSDraw " + scil.Utils.formatStr(dt.getMonth() + 1, 2, 0).replace(' ', '0') +
             scil.Utils.formatStr(dt.getDate(), 2, 0).replace(' ', '0') +
             yr.substr(2) +
             scil.Utils.formatStr(dt.getHours(), 2, 0).replace(' ', '0') +
@@ -8740,8 +9326,11 @@ JSDraw2.Mol = scil.extend(scil._base, {
             s += "  0  0        0               999 V3000\n";
         }
 
+        var enhancedstereochemistry = this.getEnhancedStereochemistry();
+        var chiral = this.hasStereoCenter() || !scil.Utils.isNullOrEmpty(enhancedstereochemistry);
+
         s += "M  V30 BEGIN CTAB\n";
-        s += "M  V30 COUNTS " + this.atoms.length + " " + this.bonds.length + " 0 0 " + (this.chiral ? 1 : 0) + "\n";
+        s += "M  V30 COUNTS " + this.atoms.length + " " + this.bonds.length + " 0 0 " + (chiral ? 1 : 0) + "\n";
 
         s += "M  V30 BEGIN ATOM\n";
         for (var i = 0; i < this.atoms.length; ++i) {
@@ -8768,6 +9357,10 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 s += " CHG=" + a.charge;
             if (a.radical >= 1 && a.radical <= 3)
                 s += " RAD=" + a.radical;
+
+            //if (chiralatoms[a.id] != null)
+            //    s += " CFG=" + chiralatoms[a.id];
+
             s += "\n";
         }
         s += "M  V30 END ATOM\n";
@@ -8825,13 +9418,22 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 s += " RXCTR=" + b.rcenter;
             s += "\n";
         }
+
         s += "M  V30 END BOND\n";
-
-        s += this.getEnhancedStereochemistry();
-
+        s += enhancedstereochemistry;
         s += "M  V30 END CTAB\n";
         s += "M  END\n";
         return s;
+    },
+
+    hasStereoCenter: function () {
+        for (var i = 0; i < this.bonds.length; ++i) {
+            var b = this.bonds[i];
+            if (b.type == JSDraw2.BONDTYPES.WEDGE || b.type == JSDraw2.BONDTYPES.HASH)
+                return true;
+        }
+
+        return false;
     },
 
     hasEnhancedStereochemistry: function () {
@@ -8847,11 +9449,9 @@ JSDraw2.Mol = scil.extend(scil._base, {
     },
 
     readV30Collections: function (lines, i, atommap) {
-
     },
 
     readV30Bonds: function (lines, i, atommap, rxn) {
-
     },
 
     getChiralAtom: function (t) {
@@ -9488,13 +10088,19 @@ JSDraw2.Mol = scil.extend(scil._base, {
     * @function splitFragments
     * @returns an array of Mol
     */
-    splitFragments: function () {
+    splitFragments: function (skipHiddenAtoms) {
         this.clearFlag();
 
         var fragid = -1;
         var bonds = scil.Utils.cloneArray(this.bonds);
         while (bonds.length > 0) {
             var b = bonds[0];
+            if (skipHiddenAtoms) {
+                if (b.a1.hidden || b.a2.hidden) {
+                    bonds.splice(0, 1);
+                    continue;
+                }
+            }
             b.f = b.a1.f = b.a2.f = ++fragid;
             bonds.splice(0, 1);
 
@@ -9502,6 +10108,11 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 var n = 0;
                 for (var i = bonds.length - 1; i >= 0; --i) {
                     var b = bonds[i];
+                    if (b.a1.hidden || b.a2.hidden) {
+                        bonds.splice(i, 1);
+                        continue;
+                    }
+
                     if (b.f == null && (b.a1.f == fragid || b.a2.f == fragid)) {
                         b.f = b.a1.f = b.a2.f = fragid;
                         bonds.splice(i, 1);
@@ -9532,6 +10143,9 @@ JSDraw2.Mol = scil.extend(scil._base, {
 
         for (var i = 0; i < this.atoms.length; ++i) {
             if (this.atoms[i].f == null) {
+                if (skipHiddenAtoms && this.atoms[i].hidden)
+                    continue;
+
                 var m = new JSDraw2.Mol();
                 frags.push(m);
                 m._addAtom(this.atoms[i], this);
@@ -10503,8 +11117,9 @@ JSDraw2.Point = scilligence.extend(scilligence._base, {
     * @returns true or false
     */
     onLine: function (p1, p2, tor) {
-        var d = p1.distTo(this) + p2.distTo(this) - p1.distTo(p2);
-        return Math.abs(d) <= tor;
+        var d2 = p1.distTo(p2);
+        var d = p1.distTo(this) + p2.distTo(this) - d2;
+        return Math.abs(d) <= tor * (50 / d2);
     },
 
     inTriangle: function (v1, v2, v3) {
@@ -11239,7 +11854,43 @@ JSDraw2.Stack = scilligence.extend(scilligence._base, {
         return i;
     }
 });
-﻿//////////////////////////////////////////////////////////////////////////////////
+
+
+
+scil.Deque = scil.apply(scil._base, {
+    constructor: function () {
+        this.items = [];
+    },
+
+    pushRange: function (list) {
+        if (list == null)
+            return;
+
+        for (var i = 0; i < list.length; ++i)
+            this.push(list[i]);
+    },
+
+    push: function (n) {
+        this.items.push(n);
+    },
+
+    pop: function () {
+        if (this.items.length == 0)
+            return null;
+
+        var r = this.items[0];
+        this.items.splice(0, 1);
+        return r;
+    },
+
+    length: function () {
+        return this.items.length;
+    },
+
+    clear: function () {
+        this.items = [];
+    }
+});﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
 // Copyright (C) 2016 Scilligence Corporation
@@ -11384,31 +12035,13 @@ JSDraw2.SuperAtoms = {
             return;
         this.dict = {};
         this.addSdf(this.sdf);
-        this._use3LetterAAs();
 
         if (JSDraw2.defaultoptions != null)
             this.addSdf(JSDraw2.defaultoptions.abbreviations);
         this.addSdf(JSDraw2.abbreviations);
-    },
 
-    _use3LetterAAs: function () {
-        if (JSDraw2.defaultoptions == null || !JSDraw2.defaultoptions.use3LetterAAs)
-            return;
-
-        var keys = { A: "Ala", R: "Arg", N: "Asn", D: "Asp", C: "Cys", E: "Glu", Q: "Gln", G: "Gly", H: "His", I: "Ile", L: "Leu", K: "Lys", M: "Met", F: "Phe", P: "Pro", S: "Ser", T: "Thr", W: "Trp", Y: "Tyr", V: "Val",
-            O: "Pyl", U: "Sec", B: "Asx", Z: "Glx", J: "Xle", X: "Xaa"
-        };
-        this.translateKeys(this.AminoAcids, keys);
-    },
-
-    translateKeys: function (dict, keys) {
-        for (var k in keys) {
-            var k2 = keys[k];
-            if (dict[k] != null && dict[k2] == null) {
-                dict[k2] = dict[k];
-                delete dict[k];
-            }
-        }
+        if (this.onAfterRead != null)
+            this.onAfterRead();
     },
 
     addSdf: function (sdf) {
@@ -11514,63 +12147,86 @@ JSDraw2.FormulaParser = {
         }
 
         var m = this._parse(s, orphan, bonds);
-        if (m == null)
+        if (m == null && orphan)
+            m = this.pareFormulaAsSalt(s);
+
+        if (m == null || m.atoms.length == 0)
             return null;
 
-        if (salt != null) {
-            var coef = 1;
-            var s2 = salt.replace(/^[0-9]+/, "");
-            if (s2.length < salt.length) {
-                coef = parseInt(salt.substr(0, salt.length - s2.length));
-                salt = s2;
-            }
-            if (coef < 1)
-                return null;
-
-            // --COOH.NH4+
-            var m2 = null;
-            var salt2 = salt.replace(/[+|-][1-9]?$/, "");
-            var charge = this.parseCharge(salt.substr(salt2.length));
-            salt = salt2;
-
-            // strip H's
-            var elem = salt.replace(/[H][0-9]{0,10}/g, "");
-            m2 = this.molFromAtom(elem, false, charge);
-            if (m2 == null) {
-                var s2 = salt.replace(/^[A-Z][a-z]?/, "");
-                if (s2.length < salt.length) {
-                    elem = salt.substr(0, salt.length - s2.length);
-                    m2 = this._parse(s2);
-                    if (m2 == null)
-                        return null;
-                    var atts = JSDraw2.SuperAtoms._getAttachAtoms(m2);
-                    if (atts == null || atts.length != 1)
-                        return null;
-                    var a1 = atts[0].a;
-                    a1.attachpoints = [];
-                    if (elem != "H") {
-                        var a2 = new JSDraw2.Atom(atts[0].a.p.clone(), elem);
-                        var b = new JSDraw2.Bond(a1, a2);
-                        m2.addAtom(a2);
-                        m2.addBond(b);
-                    }
-                }
-            }
-            if (m2 == null)
+        if (!scil.Utils.isNullOrEmpty(salt)) {
+            var m2 = this.pareFormulaAsSalt(salt);
+            if (m2 == null || m2.atoms.length == 0)
                 return null;
 
             var a1 = m.atoms[m.atoms.length - 1];
-            for (var i = 0; i < coef; ++i) {
-                var m3 = m2.clone();
-                var a2 = m3.atoms[0];
-                m.mergeMol(m3);
-                var b = new JSDraw2.Bond(a1, a2);
-                b.type = JSDraw2.BONDTYPES.DUMMY;
-                m.addBond(b);
-            }
+            var a2 = m2.atoms[0];
+            m.mergeMol(m2);
+            var b = new JSDraw2.Bond(a1, a2);
+            b.type = JSDraw2.BONDTYPES.DUMMY;
+            m.addBond(b);
         }
 
         JSDraw2.SuperAtoms.normalize(m);
+        return m;
+    },
+
+    pareFormulaAsSalt: function (salt) {
+        if (scil.Utils.isNullOrEmpty(salt))
+            return null;
+
+        var coef = 1;
+        var s2 = salt.replace(/^[0-9]+/, "");
+        if (s2.length < salt.length) {
+            coef = parseInt(salt.substr(0, salt.length - s2.length));
+            salt = s2;
+        }
+        if (coef < 1)
+            return null;
+
+        // --COOH.NH4+
+        var m = null;
+        var salt2 = salt.replace(/[+|-][1-9]?$/, "");
+        var charge = this.parseCharge(salt.substr(salt2.length));
+        salt = salt2;
+
+        // strip H's
+        var elem = salt.replace(/[H][0-9]{0,10}/g, "");
+        m = this.molFromAtom(elem, false, charge);
+        if (m == null) {
+            var s2 = salt.replace(/^[A-Z][a-z]?/, "");
+            if (s2.length < salt.length) {
+                elem = salt.substr(0, salt.length - s2.length);
+                m = this._parse(s2);
+                if (m == null)
+                    return null;
+                var atts = JSDraw2.SuperAtoms._getAttachAtoms(m);
+                if (atts == null || atts.length != 1)
+                    return null;
+                var a1 = atts[0].a;
+                a1.attachpoints = [];
+                if (elem != "H") {
+                    var a2 = new JSDraw2.Atom(atts[0].a.p.clone(), elem);
+                    var b = new JSDraw2.Bond(a1, a2);
+                    m.addAtom(a2);
+                    m.addBond(b);
+                }
+            }
+        }
+
+        if (m == null || m.atoms.length == 0)
+            return null;
+
+        var m0 = m.clone();
+        for (var i = 1; i < coef; ++i) {
+            var a1 = m.atoms[m.atoms.length - 1];
+            var m3 = m0.clone();
+            var a2 = m3.atoms[0];
+            m.mergeMol(m3);
+            var b = new JSDraw2.Bond(a1, a2);
+            b.type = JSDraw2.BONDTYPES.DUMMY;
+            m.addBond(b);
+        }
+
         return m;
     },
 
@@ -11585,10 +12241,13 @@ JSDraw2.FormulaParser = {
                 return { coef: 1, mf: null, mw: 0, s: s };
         }
 
-        var patt = /^[0-9]{0,10}[\.]?[0-9]{0,9}[ ]?/;
-        var s2 = patt.exec(s) + "";
-        if (s2.length == s.length)
-            return null;
+        var s2 = "";
+        if (!JSDraw2.FormulaParser.ignoresaltcoef) {
+            var patt = /^[0-9]{0,10}[\.]?[0-9]{0,9}[ ]?/;
+            var s2 = patt.exec(s) + "";
+            if (s2.length == s.length)
+                return null;
+        }
 
         var coef = 1.0;
         if (s2 != "") {
@@ -11604,16 +12263,16 @@ JSDraw2.FormulaParser = {
         var salts = JSDraw2.defaultoptions.salts || JSDraw2.salts;
         if (salts != null && salts[caps] != null) {
             mf = salts[caps];
-            mw = JSDraw2.FormulaParser.mf2mw(mf);
+            mw = this.mf2mw(mf, true);
         }
         else {
             mf = s;
-            mw = JSDraw2.FormulaParser.mf2mw(mf);
+            mw = this.mf2mw(mf, true);
         }
         if (mw == null || mw == 0)
             return null;
 
-        return { coef: coef, mf: coef == 1 ? mf : coef + "(" + mf + ")", mw: Math.round(mw * 1000) / 1000, s: coef == 1 ? s : coef + s };
+        return { coef: coef, mf: coef == 1 ? mf : coef + "(" + mf + ")", mw: Math.round(mw * (coef > 0 ? coef : 1) * 1000) / 1000, s: coef == 1 ? s : coef + s, stats: this.mf2Stats(mf, true) };
     },
 
     parseCharge: function (s) {
@@ -11686,29 +12345,27 @@ JSDraw2.FormulaParser = {
         if (mol == null)
             return null;
 
-        var bios = [];
-        var elements = {};
-        var isotopes = {};
+        var ret = { elements: {}, charges: 0, isotopes: {}, bios: [] };
+
         var hs = 0;
-        var charges = 0;
         var multicenterHs = 0;
         for (var i = 0; i < mol.atoms.length; ++i) {
             var a = mol.atoms[i];
             if (a.elem == "5'") {
-                if (elements["H"] == null)
-                    elements["H"] = 1;
+                if (ret.elements["H"] == null)
+                    ret.elements["H"] = 1;
                 else
-                    ++elements["H"];
+                    ++ret.elements["H"];
             }
             else if (a.elem == "3'") {
-                if (elements["H"] == null)
-                    elements["H"] = 1;
+                if (ret.elements["H"] == null)
+                    ret.elements["H"] = 1;
                 else
-                    ++elements["H"];
-                if (elements["O"] == null)
-                    elements["O"] = 1;
+                    ++ret.elements["H"];
+                if (ret.elements["O"] == null)
+                    ret.elements["O"] = 1;
                 else
-                    ++elements["O"];
+                    ++ret.elements["O"];
             }
             else if (a.bio != null) {
                 switch (a.bio.type) {
@@ -11719,7 +12376,7 @@ JSDraw2.FormulaParser = {
                     case JSDraw2.BIO.RNA:
                         var se = new JSDraw2.SequenceEditor();
                         se.setXml(a.bio.sequences);
-                        bios.push({ mw: se.getMolWeight() });
+                        ret.bios.push({ mw: se.getMolWeight() });
                         break;
                 }
             }
@@ -11740,39 +12397,44 @@ JSDraw2.FormulaParser = {
                 if (dummy > 0)
                     multicenterHs += sum;
             }
+            else if (a.elem == "#") {
+                var salt = this.parseSalt(a.alias);
+                if (salt != null)
+                    this.mergeStats(ret, salt.stats, salt.coef);
+            }
             else {
                 var e = a.elem;
                 if (a.isotope > 0) {
-                    var n = isotopes[e];
+                    var n = ret.isotopes[e];
                     if (n == null)
-                        isotopes[e] = {};
-                    var iso = isotopes[e];
+                        ret.isotopes[e] = {};
+                    var iso = ret.isotopes[e];
                     if (iso[a.isotope] == null)
                         iso[a.isotope] = 1;
                     else
                         iso[a.isotope] = iso[a.isotope] + 1;
                 }
                 else {
-                    var n = elements[e];
+                    var n = ret.elements[e];
                     if (n == null)
-                        elements[e] = 1;
+                        ret.elements[e] = 1;
                     else
-                        elements[e] = n + 1;
+                        ret.elements[e] = n + 1;
                 }
                 hs += a.hcount;
             }
-            charges += a.charge;
+            ret.charges += a.charge;
         }
 
         hs -= multicenterHs;
         if (hs > 0) {
-            if (elements["H"] != null)
-                elements["H"] = hs + elements["H"];
+            if (ret.elements["H"] != null)
+                ret.elements["H"] = hs + ret.elements["H"];
             else
-                elements["H"] = hs;
+                ret.elements["H"] = hs;
         }
 
-        return { elements: elements, charges: charges, isotopes: isotopes, bios: bios };
+        return ret;
     },
 
     stats2mw: function (stats) {
@@ -11895,8 +12557,8 @@ JSDraw2.FormulaParser = {
         return s;
     },
 
-    mf2mw: function (mf) {
-        var stats = this.mf2Stats(mf);
+    mf2mw: function (mf, issalt) {
+        var stats = this.mf2Stats(mf, issalt);
         return this.stats2mw(stats);
     },
 
@@ -11905,19 +12567,45 @@ JSDraw2.FormulaParser = {
         return this.stats2mf(stats);
     },
 
-    mf2Stats: function (mf) {
+    mf2Stats: function (mf, issalt) {
         if (mf == null || mf == "")
             return null;
 
         var charges = 0;
         var mf2 = mf.replace(/(([+|-][0-9]{0,2})|([ ][0-9]{0,2}[+|-]))$/, "");
-        if (mf2.length < mf.length)
+        if (mf2.length < mf.length) {
             charges = this.parseCharge(mf.substr(mf2.length));
+        }
 
         var ret = this.mf2Stats2(mf2);
-        if (ret != null)
+        if (ret != null && charges != 0) {
+            // I#10049
+            if (issalt)
+                charges = this.calcSaltCharges(ret, charges);
+
             ret.charges += charges;
+        }
+
         return ret;
+    },
+
+    calcSaltCharges: function (ret, charges) {
+        if (JSDraw2.defaultoptions.calcsaltcharges != true)
+            return charges;
+
+        if (charges >= 1) {
+            if (charges > 1) {
+                for (var k in ret.elements)
+                    ret.elements[k] /= charges * 1.0;
+            }
+
+            if (ret.elements["H"] == null)
+                ret.elements["H"] = 0;
+            --ret.elements["H"];
+            charges = 0;
+        }
+
+        return charges;
     },
 
     mf2Stats2: function (s) {
@@ -13003,32 +13691,44 @@ JSDraw2.Lasso = scilligence.extend(scilligence._base, {
 //////////////////////////////////////////////////////////////////////////////////
 
 JSDraw2.Drawer = {
-    kMinFontSize: 6,
+    kMinFontSize: 4,
 
     drawFormula: function (surface, p, reversed, s, color, fontsize) {
+        //I#11940
         if (reversed) {
-            //            var s2 = JSDraw2.SuperAtoms.reverseLabel(s);
-            //            s = "";
-            //            for (var i = 0; i < s2.length; ++i)
-            //                s = s2.substr(i, 1) + s;
-
-            var ss = this.splitFormula(s);
-            var s2 = "";
-            for (var i = 0; i < ss.length; ++i)
-                s2 = ss[i].str + (ss[i].num != null ? ss[i].num : "") + s2;
-            s = "";
-            for (var i = 0; i < s2.length; ++i)
-                s = s2.substr(i, 1) + s;
+            var c = s.charAt(0);
+            if (c >= '0' && c <= '9')
+                reversed = false;
         }
 
         var rect = new JSDraw2.Rect();
-        for (var i = 0; i < s.length; ++i) {
-            var c = s.charAt(i);
-            var r = this.drawWord(surface, rect, p, color, fontsize, s.substr(i, 1), reversed, c >= '0' && c <= '9');
+        var ss = this.splitFormula(s);
+        for (var i = 0; i < ss.length; ++i) {
+            if (reversed) {
+                if (ss[i].num != null) {
+                    var r = this.drawWord(surface, rect, p, color, fontsize, ss[i].num, reversed, true);
+                    if (rect.isEmpty())
+                        rect = r;
+                    else
+                        rect.union(r);
+                }
+            }
+
+            var r = this.drawWord(surface, rect, p, color, fontsize, ss[i].str, reversed, false);
             if (rect.isEmpty())
                 rect = r;
             else
                 rect.union(r);
+
+            if (!reversed) {
+                if (ss[i].num != null) {
+                    r = this.drawWord(surface, rect, p, color, fontsize, ss[i].num, reversed, true);
+                    if (rect.isEmpty())
+                        rect = r;
+                    else
+                        rect.union(r);
+                }
+            }
         }
 
         return rect;
@@ -13048,21 +13748,23 @@ JSDraw2.Drawer = {
         }
         else if (reversed) {
             dx = -(p.x - rect.left) - nw;
-            if (w == "I" || w == "i" || w == "l" || w == "r") {
-                dx -= fontsize / 5;
+            if (w == "I" || w == "i" || w == "l" || w == "r" || w == "f" || w == ".") {
+                dx -= fontsize / 6.0;
                 // r.width -= 4;
             }
+
             if (scil.Utils.isChrome)
-                dx -= fontsize / 9;
+                dx -= fontsize / 10.0;
         }
         else {
             dx = (rect.right() - p.x) + nw;
-            if (w == "I" || w == "i" || w == "l" || w == "r") {
-                dx += fontsize / 5;
+            if (w == "I" || w == "i" || w == "l" || w == "r" || w == "f" || w == ".") {
+                dx += fontsize / 6.0;
                 // r.width -= 4;
             }
+
             if (scil.Utils.isChrome)
-                dx += fontsize / 9;
+                dx += fontsize / 10.0;
         }
 
         n.setTransform([dojox.gfx.matrix.translate(dx, dy)]);
@@ -13072,7 +13774,7 @@ JSDraw2.Drawer = {
     },
 
     splitFormula: function (s) {
-        if (new RegExp("^[A-Z]+$").test(s) || new RegExp("^[\(][^\(\)]+[\)]$").test(s))
+        if (/^[A-Z]+$/.test(s) || /^[\(][^\(\)]+[\)]$/.test(s) || /^[\[][^\[\]]+[\]]$/.test(s))
             return [{ str: s}];
 
         var ret = [];
@@ -13526,7 +14228,7 @@ JSDraw2.Drawer = {
     drawHexgon: function (surface, r, color, linewidth) {
         var c = r.center();
         var d = new JSDraw2.Point(0, r.width / 2);
-        d.rotate(-30);        
+        d.rotate(-30);
         var points = [
             { x: r.right(), y: c.y },
             { x: c.x + d.x, y: c.y - d.y },
@@ -13604,7 +14306,7 @@ JSDraw2.Skin = {
 
     reset: function () {
         this.jsdraw = { bkcolor: "#e1e1e1", bkimg: scil.Utils.imgSrc("img/hbg.gif"), toolbarbk: scil.Utils.imgSrc("img/toolbarbk.jpg"), hovercolor: "#eef", btnselcolor: "#bbf" };
-        this.jssdf = { bgcolor: "#ebecee", headerimg: scil.Utils.imgSrc("img/header-bg.gif"), headercolor: "#ebecee", rowcolor: "#f96", oddcolor: "", evencolor: "#eee", border: "solid 1px #ccc" };
+        this.jssdf = { bgcolor: "#eee", headerimg: scil.Utils.imgSrc("img/header-bg.gif"), headercolor: "#eee", rowcolor: "#f96", oddcolor: "", evencolor: "#eee", border: "solid 1px #ccc" };
         scilligence.apply(this.jssdf, this.jsdraw);
         this.dialog = { bkimg: scil.Utils.imgSrc("img/dlgheader.gif"), bkcolor: "#6badf6", border: "1px solid #4f6d81" };
     },
@@ -13805,8 +14507,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.options.inktools = JSDraw2.defaultoptions.inktools != null ? JSDraw2.defaultoptions.inktools : !scil.Utils.isAttFalse(this.div, "inktools");
         if (this.options.highlighterrors == null)
             this.options.highlighterrors = JSDraw2.defaultoptions.highlighterrors != null ? JSDraw2.defaultoptions.highlighterrors : !scil.Utils.isAttFalse(this.div, "highlighterrors");
-        if (this.options.skin == null)
+        if (this.options.skin == null) {
             this.options.skin = JSDraw2.defaultoptions.skin != null ? JSDraw2.defaultoptions.skin : dojo.attr(this.div, "skin");
+            if (this.options.skin == null)
+                this.options.skin = "w8"
+        }
         if (this.options.monocolor == null)
             this.options.monocolor = scil.Utils.isAttTrue(this.div, "monocolor");
         if (this.options.fullscreen == null)
@@ -13968,8 +14673,12 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             if (scil.Utils.serviceAvailable() && scil.DnDFile != null) {
                 new scil.DnDFile(this.div, {
                     url: JSDrawServices.url + "?cmd=openjsd",
-                    onupload: function (args) { if (!scil.Utils.isChemFile(scil.Utils.getFileExt(args.filename))) return false; },
-                    callback: function (ret) { me.activate(true); JSDraw2.JSDrawIO.jsdFileOpen2(me, ret); }
+                    onupload: function (args) {
+                        if (!scil.Utils.isChemFile(scil.Utils.getFileExt(args.filename))) return false;
+                    },
+                    callback: function (ret) {
+                        me.activate(true); JSDraw2.JSDrawIO.jsdFileOpen2(me, ret);
+                    }
                 });
             }
         }
@@ -14090,90 +14799,68 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 this.doCmd("tlc");
             else
                 this.doCmd("select");
+
+            if (!this.options.appmode && !scil.Utils.isIE) // except IE, I#10205
+                scil.connect(document, "onpaste", function (e) { if (me.doPaste(e)) e.preventDefault(); });
         }
         else {
             this.doCmd("moveview");
         }
     },
 
-    //    gesture2: null,
-    //    gestureStart: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
+    doPaste: function (s) {
+        if (!this.activated)
+            return false;
 
-    //        this.gesture2 = null;
-    //        dojo.byId("DEBUG").value = "start\r\n";
-    //    },
+        if (this.texteditor.ed != null && this.texteditor.ed.input != null && this.texteditor.ed.input.style.display != "none")
+            return false;
 
-    //    gestureChange: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
+        var maxZindex = scil.Utils.getMaxZindex();
+        var zindex = scil.Utils.getZindex(this.div);
+        if (maxZindex > zindex)
+            return false;
 
-    //        dojo.byId("DEBUG").value += this.gesture2 + " " + e.translationX + "," + e.translationY + " " + e.scale + " " + Math.round(e.rotation * 360 / Math.PI) + " " + e.velocityX + "," + e.velocityY + "\r\n";
-    //        if (this.gesture2 == null) {
-    //            if (e.rotation == 0 && e.scale == 1)
-    //                return;
-    //            //this.gestureClone = this.clone();
-    //            this.gesture2 = { p: this.eventPoint(e), g: { trans: { x: e.translationX, y: e.translationY }, scale: e.scale, deg: Math.round(e.rotation * 360 / Math.PI)} };
-    //            this.gesture2.cloned = this.clone();
-    //            return;
-    //        }
+        var clipboard = s;
+        if (clipboard != null && clipboard.clipboardData != null)
+            s = clipboard.clipboardData.getData("text/plain");
 
-    //        if (this.gesture2 == null)
-    //            return;
-    //        this.start = null;
-    //        var g2 = { trans: { x: e.translationX, y: e.translationY }, scale: e.scale, deg: Math.round(e.rotation * 360 / Math.PI) };
-    //        var g1 = this.gesture2.g;
-    //        var f = false;
+        var m = null;
+        if (!scil.Utils.isNullOrEmpty(s)) {
+            m = new JSDraw2.Mol();
+            m.setXml(s);
+            if (m.isEmpty())
+                m = null;
+        }
 
-    //        var trans = Math.abs(g2.trans.x - g1.trans.x) + Math.abs(g2.trans.y - g1.trans.y);
-    //        var deg = Math.abs(g2.deg - g1.deg);
-    //        if (this.gesture2.mode == null) {
-    //            if (trans > 5 || deg > 5)
-    //                this.gesture2.mode = trans > deg ? "moveview" : "rotate";
-    //        }
+        if (m == null)
+            m = JSDraw2.Editor.getClipboard();
 
-    //        if (this.gesture2.mode == "moveview") {
-    //            if (trans > 5) {
-    //                this.m.offset(g2.trans.x - g1.trans.x, g2.trans.y - g1.trans.y);
-    //                f = true;
-    //            }
-    //        }
-    //        else if (this.gesture2.mode == "rotate") {
-    //            if (Math.abs(g2.deg - g1.deg) > 0.5) {
-    //                this.m.rotate(this.gesture2.p, g2.deg - g1.deg);
-    //                f = true;
-    //            }
-    //        }
-    //        if (!f && Math.abs(g2.scale / g1.scale - 1) > 0.05) {
-    //            this.scale(g2.scale / g1.scale, this.gesture2.p);
-    //            f = true;
-    //        }
+        if (m == null) {
+            // try ajax paste
+            if (clipboard != null && clipboard.clipboardData != null && JSDrawServices != null && JSDrawServices.url != null) {
+                var rtf = clipboard.clipboardData.getData("text/rtf");
+                if (!scil.Utils.isNullOrEmpty(rtf)) {
+                    var me = this;
+                    scil.Utils.ajax(JSDrawServices.url + "?cmd=paste.rtf2jsdraw", function (ret) {
+                        if (ret == null && ret.jsdraw == null)
+                            return;
+                        var m = new JSDraw2.Mol();
+                        if (m.setXml(ret.jsdraw) == null)
+                            return;
+                        var f = me.pasteMol(m);
+                        if (f)
+                            me.refresh();
+                    }, { rtf: rtf });
+                }
+            }
+            return false;
+        }
 
-    //        if (f) {
-    //            this.gesture2.changed = true;
-    //            this.gesture2.g = g2;
-    //            this.redraw();
-    //        }
-    //    },
-
-    //    gestureEnd: function (e) {
-    //        if (!this.activated)
-    //            return;
-    //        else
-    //            e.preventDefault();
-
-    //        if (this.gesture2 != null && this.gesture2.changed) {
-    //            this.pushundo(this.gesture2.cloned);
-    //            this.gesture2 = null;
-    //            this.setModified(true);
-    //        }
-    //        //dojo.byId("DEBUG").value += "end\r\n";
-    //    },
+        var ret = this.pasteMol(m);
+        if (ret)
+            this.refresh();
+        return true;
+    },
 
     _showAllParents: function (e) {
         var ret = { display: [], visibility: [], visvalues: [] };
@@ -14280,9 +14967,18 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     * @returns null
     */
     copy: function (m) {
-        if (m == null)
+        if (m == null) {
             m = this.m.clone(true);
-        return JSDraw2.Editor.setClipboard(m, this.bondlength);
+            m.bondlength = this.bondlength;
+        }
+        JSDraw2.Editor.setClipboard(m, this.bondlength);
+
+        if (scil.Clipboard != null && m != null && !m.isEmpty()) {
+            scil.Clipboard.copy(m.getXml(null, null, null, null, this.bondlength));
+            return true;
+        }
+
+        return false;
     },
 
     /**
@@ -14480,7 +15176,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 list = JSDraw2.defaultoptions.atomlist != null ? JSDraw2.defaultoptions.atomlist : JSDraw2.PT.getCommonUsedElements("list");
             this.texteditor.ed.setItems(list);
             options.onSetValue = function (input, s) { input.value = s; };
-            options.minautowidth = 100;
+            options.minautowidth = JSDraw2.defaultoptions.minautowidth1 > 0 ? JSDraw2.defaultoptions.minautowidth1 : 100;
             if (a.bio != null)
                 options.onFilter = null;
             else
@@ -14491,7 +15187,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         }
         else if (br != null) {
             if (t.fieldtype == "BRACKET_TYPE") {
-                this.texteditor.ed.setItems(JSDraw2.SGroup.getDisplayTypes());
+                this.texteditor.ed.setItems(JSDraw2.SGroup == null ? null : JSDraw2.SGroup.getDisplayTypes());
                 options.onSetValue = function (input, s) {
                     var s2 = "";
                     if (scil.Utils.endswith(s, ")")) {
@@ -14501,7 +15197,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     }
                     input.value = s2;
                 };
-                options.minautowidth = 150;
+                options.minautowidth = JSDraw2.defaultoptions.minautowidth2 > 0 ? JSDraw2.defaultoptions.minautowidth2 : 150;
                 options.onFilter = null;
             }
             else if (t.fieldtype == "MOL_TYPE") {
@@ -14512,14 +15208,14 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     else
                         input.value = s;
                 };
-                options.minautowidth = 150;
+                options.minautowidth = JSDraw2.defaultoptions.minautowidth2 > 0 ? JSDraw2.defaultoptions.minautowidth2 : 150;
                 options.onFilter = null;
             }
         }
         else {
             this.texteditor.ed.setItems(JSDraw2.defaultoptions.textlist != null ? JSDraw2.defaultoptions.textlist : JSDraw2.TEXTKEYWORDS);
             options.onSetValue = function (input, s) { if (scil.Utils.indexOf(options.items, s) >= 0) input.value += s; else input.value = s; };
-            options.minautowidth = 300;
+            options.minautowidth = JSDraw2.defaultoptions.minautowidth3 > 0 ? JSDraw2.defaultoptions.minautowidth3 : 300;
             options.autosuggest = this.options.reagentsuggest;
             options.onFilter = options.autosuggest != null ? null : function () { };
         }
@@ -14574,7 +15270,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     filterAtomType: function (q) {
         if (this.texteditor.atom == null)
             return;
-        return JSDraw2.SuperAtoms.filter(q, 10);
+        return JSDraw2.SuperAtoms.filter(q, JSDraw2.defaultoptions.suggestcount > 0 ? JSDraw2.defaultoptions.suggestcount : 10);
     },
 
     createImageTo: function (parent) {
@@ -14661,13 +15357,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             if (this.texteditor.atom.bio != null) {
                 if (this.helm != null && scil.helm.isHelmNode(this.texteditor.atom)) {
-                    var m = scil.helm.Monomers.getMonomer(this.texteditor.atom, s);
-                    if (m == null) {
-                        scil.Utils.alert("Unknown monomer type: " + s);
-                        return;
-                    }
-                    this.texteditor.atom.elem = s;
-                    f = true;
+                    f = this.helm.setNodeTypeFromGui(this.texteditor.atom, s);
                 }
             }
             else {
@@ -14889,6 +15579,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             var g = this.createGroup(this.surface.rootgroup);
             g.monocolor = this.options.monocolor || JSDraw2.defaultoptions.monocolor;
             this.simpledraw = this.fontsize <= JSDraw2.speedup.fontsize;
+            this.updateGroupRect();
             this.m.draw(g, this.linewidth, this.fontsize, null, this.dimension, this.options.highlighterrors, this.options.showcarbon, this.simpledraw);
         }
 
@@ -15024,26 +15715,49 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         this.m.moveCenter(this.dimension.x, this.dimension.y);
     },
 
+    updateGroupRect: function () {
+        for (var i = 0; i < this.m.graphics.length; ++i) {
+            var g = JSDraw2.Group.cast(this.m.graphics[i]);
+            if (g != null)
+                g._updateRect(this.m, this.bondlength);
+        }
+    },
+
     /**
     * Clean up reaction
     * @function cleanupRxn
     * @returns true if it is a reaction
     */
     cleanupRxn: function () {
-        var f = this.m.cleanupRxn();
+        var f = this.m.cleanupRxn(this.bondlength);
         if (f)
             this.fitToWindow(this.bondlength);
         return f;
     },
 
-    setRxn: function (rxn, redraw, bondlength) {
+    setRxn: function (rxn, redraw, bondlength, addlabel) {
         this.pushundo();
         if (bondlength != null)
             this.bondlength = bondlength;
 
+        if (addlabel) {
+            for (var i = 0; i < rxn.reactants.length; ++i)
+                rxn.reactants[i].removeTextByFieldType("RXNLABEL");
+            for (var i = 0; i < rxn.products.length; ++i)
+                rxn.products[i].removeTextByFieldType("RXNLABEL");
+        }
+
         this.m.setRxn(rxn, this.bondlength);
         this.calcTextRect();
         this.m._layoutRxn(rxn, this.bondlength);
+
+        if (addlabel) {
+            for (var i = 0; i < rxn.reactants.length; ++i)
+                this.m._addRxnLabel(rxn.reactants[i], this.bondlength / 2);
+            for (var i = 0; i < rxn.products.length; ++i)
+                this.m._addRxnLabel(rxn.products[i], this.bondlength / 2);
+        }
+
         this.fitToWindow(this.bondlength);
         if (redraw != false)
             this.redraw();
@@ -15446,6 +16160,34 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         }
     },
 
+    selectCurrent: function (obj, e) {
+        if (this.curObject == obj)
+            return false;
+
+        this.curObject = obj;
+        if (this.options.onselectcurrent != null)
+            this.options.onselectcurrent(e, obj, this);
+
+        if (this.options.showhelmpopup)
+            this.onHelmSelectCurrent(e, obj);
+        return true;
+    },
+
+    onHelmSelectCurrent: function (e, obj) {
+        var a = JSDraw2.Atom.cast(obj);
+        if (a == null || this.start != null || this.contextmenu != null && this.contextmenu.isVisible()) {
+            org.helm.webeditor.MolViewer.hide();
+            return;
+        }
+        var type = a == null ? null : a.biotype();
+        if (type == null)
+            return;
+        var set = org.helm.webeditor.Monomers.getMonomerSet(type);
+        var s = a == null ? null : a.elem;
+        var m = set == null ? null : set[s.toLowerCase()];
+        org.helm.webeditor.MolViewer.show(e, type, m, s, this, a);
+    },
+
     mousemove: function (e, viewonly) {
         if (!this.activated) {
             //this.mousedownPoint = null;
@@ -15481,12 +16223,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         var obj = null;
         if (this.start == null || cmd != "select" && cmd != "lasso" && cmd != "selfrag") {
             obj = this.toggle(p);
-            if (this.curObject != obj) {
-                f = true;
-                this.curObject = obj;
-                if (this.options.onselectcurrent != null)
-                    this.options.onselectcurrent(e, obj, this);
-            }
+            f = this.selectCurrent(obj, e);
         }
 
         if (this.start != null) {
@@ -15880,6 +16617,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
             else if (this.resizing != null) {
                 if (this.resizing.changed) {
+                    this._bracketReselectAtoms();
                     this.pushundo(this.movingClone);
                     this.movingClone = null;
                     this.resizing = null;
@@ -15888,6 +16626,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
             else if (this.movingClone != null) {
                 if (!this.movingClone.startPt.equalsTo(p2)) {
+                    this._bracketReselectAtoms();
                     this.pushundo(this.movingClone);
                     this.mergeOverlaps();
                     this.movingClone = null;
@@ -15988,11 +16727,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.refresh(f);
 
             if (br != null) {
-                var t = this.m.getSgroupText(br, "BRACKET_TYPE");
-                if (t == null) {
-                    var gap = this.m.medBondLength(1.56) / 2;
-                    t = this.m.setSgroup(br, "BRACKET_TYPE", "#", br._rect.right() + gap / 4, br._rect.bottom() - gap);
-                }
+                var t = br.createSubscript(this.m, "#");
                 if (t != null)
                     this.showTextEditor(t, null, "");
             }
@@ -16111,6 +16846,9 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
 
             if (!f && this.curObject == null) {
+                if (this.options.helmtoolbar && !this.helm.isHelmCmd(cmd))
+                    return;
+
                 var bondtype = this.Cmd2BondType(cmd);
                 if (bondtype != null) {
                     var a1 = this.m.addAtom(new JSDraw2.Atom(p2));
@@ -16167,14 +16905,31 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             }
         }
 
-        if (this.helm != null && this.helm.isHelmCmd(cmd)) {
-            if (a1 != null && a2 == null) {
-                this.helm.extendChain(a1, cmd, p1, p2, cloned);
-                return;
-            }
-            else if (a1 == null && a2 == null) {
+        if (this.options.helmtoolbar) {
+            if (this.helm.connnectGroup(p1, this.curObject)) {
+                this.pushundo(cloned);
                 this.redraw();
                 return;
+            }
+
+            if ((a1 == null || a2 == null) && this.helm != null && !this.helm.isHelmCmd(cmd)) {
+                if (cmd == "single") {
+                    if (this.helm.connnectGroup(p1, this.curObject))
+                        this.pushundo(cloned);
+                }
+                this.redraw();
+                return;
+            }
+
+            if (this.helm != null && this.helm.isHelmCmd(cmd)) {
+                if (a1 != null && a2 == null) {
+                    this.helm.extendChain(a1, cmd, p1, p2, cloned);
+                    return;
+                }
+                else if (a1 == null && a2 == null) {
+                    this.redraw();
+                    return;
+                }
             }
         }
 
@@ -16270,6 +17025,16 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
         this.start = null;
         this.refresh(b != null);
+    },
+
+    _bracketReselectAtoms: function () {
+        var br = JSDraw2.Bracket.cast(this.curObject);
+        if (br == null)
+            return;
+
+        var list = this.m.bracketSelect(br.rect());
+        if (list != null && list.length > 0)
+            br.atoms = list;
     },
 
     _addNewAtomInExistingGroup: function (olda, atoms) {
@@ -16578,14 +17343,35 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         this.contextmenu.pos = this.eventPoint(e);
     },
 
+    menuSetStereochemistry: function (cmd) {
+        if (cmd == "abs")
+            cmd = null;
+
+        this.pushundo();
+        if (this.m.chiral == cmd)
+            this.m.chiral = null;
+        else
+            this.m.chiral = cmd;
+        this.refresh(true);
+    },
+
     menuCallback: function (cmd, obj) {
         var modified = false;
         var cloned = this.clone();
         switch (cmd) {
-            case "Chiral":
-                this.pushundo();
-                this.m.chiral = !this.m.chiral;
-                this.refresh(true);
+            //            case "Chiral":                                                                                                       
+            //                this.pushundo();                                                                                                       
+            //                this.m.chiral = !this.m.chiral;                                                                                                       
+            //                this.refresh(true);                                                                                                       
+            //                break;                                                                                                       
+            case "curveline":
+                obj.setAssayCurveLine(this);
+                break;
+            case "curveonly":
+                obj.setAssayCurveOnly(this);
+                break;
+            case "overlaycurves":
+                this.overlayCurves2(obj);
                 break;
             case "setrawassaydata":
                 obj.setAssayCurveRawData(this);
@@ -16675,7 +17461,22 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "helm_complementary_strand":
                 if (scil.Utils.startswith(obj.bio.annotation, "5'"))
-                    modified = this.helm.makeComplementaryStand(obj);
+                    modified = this.helm.makeComplementaryStrand(obj) != null;
+                break;
+            case "helm_create_group":
+                modified = this.helm.createGroup(obj, null, true) != null;
+                break;
+            case "helm_group_collapse":
+                modified = this.helm.collapseGroup(obj, true) != null;
+                break;
+            case "helm_bond_prop":
+                this.helm.setBondProp(obj);
+                break;
+            case "helm_atom_prop":
+                this.helm.setAtomProp(obj);
+                break;
+            case "group_setproperties":
+                this.setGroupProperties(obj);
                 break;
             case "detectstereochemistry":
                 this.detectChiralities(true);
@@ -16804,6 +17605,75 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             this.pushundo(cloned);
             this.refresh(modified);
         }
+    },
+
+    overlayCurves2: function (curve) {
+        curve = JSDraw2.AssayCurve.cast(curve);
+        if (curve == null)
+            return;
+
+        var list = [];
+        for (var i = 0; i < this.m.graphics.length; ++i) {
+            var c = JSDraw2.AssayCurve.cast(this.m.graphics[i]);
+            if (c != null && c.selected)
+                list.push(c);
+        }
+        this.overlayCurves(list, curve);
+    },
+
+    overlayCurves: function (list, curve) {
+        if (scil.Utils.indexOf(list, curve) < 0)
+            return;
+
+        this.pushundo();
+        for (var i = 0; i < list.length; ++i) {
+            list[i].curveline = false;
+            if (list[i] == curve) {
+                list[i].curveonly = false;
+            }
+            else {
+                list[i]._rect = curve._rect.clone();
+                list[i].curveonly = true;
+            }
+        }
+
+        this.refresh(true);
+    },
+
+    setGroupProperties: function (obj) {
+        var g = JSDraw2.Group.cast(obj);
+        if (g == null)
+            return;
+
+        var me = this;
+        if (this.groupPropDlg == null) {
+            var me = this;
+            var fields = { ratio: { label: "Ratio", type: "number", accepts: "(and)|(or)|[*|?]", width: 100 }, tag: { label: "Annotation", width: 300} };
+            this.groupPropDlg = scil.Form.createDlgForm("Group Properties", fields, { label: "Save", onclick: function () { me.setGroupProperties2(); } });
+        }
+        this.groupPropDlg.show();
+        this.groupPropDlg.form.setData({ ratio: g.ratio, tag: g.tag });
+        this.groupPropDlg.g = g;
+    },
+
+    setGroupProperties2: function () {
+        var data = this.groupPropDlg.form.getData();
+        var g = this.groupPropDlg.g;
+        if (data.ratio != "" && this.hasGroupBond(g))
+            data.ratio = "";
+
+        if ((g.ratio == null ? "" : g.ratio + "") != data.ratio || g.tag != data.tag) {
+            this.pushundo();
+            g.ratio = data.ratio;
+            g.tag = data.tag;
+            this.groupPropDlg.hide();
+            this.refresh(true);
+        }
+    },
+
+    hasGroupBond: function (g) {
+        var list = g.a == null ? null : this.m.getAllBonds(g.a);
+        return list != null && list.length > 0;
     },
 
     copyAs: function (fmt) {
@@ -17046,7 +17916,8 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     },
 
     expandSuperatom: function () {
-        JSDraw2.needPro();
+        if (!this.helm.expandSuperAtom(this.curObject))
+            JSDraw2.needPro();
     },
 
     _setSelectedBondType: function (bt) {
@@ -17334,7 +18205,8 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     break;
                 case 86: // V
                 case 118:
-                    if (!this.options.appmode) {
+                    if (!this.options.appmode && scil.Utils.isIE) { // except IE, I#10205
+                        // IE uses this;  All other browsers use document.onpaste event
                         if (this.paste())
                             this.refresh(true);
                     }
@@ -17460,7 +18332,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             var c = null;
             switch (e.keyCode) {
-                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
                 case 56:
                     c = '*';
                     break;
@@ -18668,13 +19540,13 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "zoomin":
                 this.pushundo();
-                this.scale(1.25);
+                this.scale(1.25, new JSDraw2.Point(this.dimension.x / 2, this.dimension.y / 2));
                 this.redraw();
                 useonce = false;
                 break;
             case "zoomout":
                 this.pushundo();
-                this.scale(0.75);
+                this.scale(0.75, new JSDraw2.Point(this.dimension.x / 2, this.dimension.y / 2));
                 this.redraw();
                 useonce = false;
                 break;
@@ -18722,7 +19594,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 break;
             case "rxn":
                 var cloned = this.clone();
-                if (this.cleanupRxn()) {
+                if (this.cleanupRxn(this.bondlength)) {
                     this.pushundo(cloned);
                     this.refresh(true);
                 }
@@ -19083,7 +19955,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             var fields = { filetype: { label: "File Type", type: "select", items: fileformats }, contents: { label: "Contents", type: "textarea", width: 800, height: 400} };
             me.savefiledlg = scil.Form.createDlgForm("Export File", fields, null, { onchange: function (field) {
                 if (field == me.savefiledlg.form.fields.filetype) me.onSaveFile();
-            } 
+            }
             });
         }
         me.savefiledlg.show();
@@ -19244,6 +20116,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     * @returns the molfile string
     */
     getMolfile: function (v3000, excludeDummyBonds) {
+        this.m.bondlength = this.bondlength;
         return this.m.getMolfile(false, v3000, excludeDummyBonds);
     },
 
@@ -19904,11 +20777,11 @@ scilligence.apply(JSDraw2.Editor, {
     __xcode: 91,
     undoGestureTime: 300,
     dblclickdelay: 300,
-    BONDLENGTH: 30,
-    ANGLESTOP: 30,
-    LINEWIDTH: 2,
-    TOR: 10,
-    FONTSIZE: 14,
+    BONDLENGTH: 30.0,
+    ANGLESTOP: 30.0,
+    LINEWIDTH: 2.0,
+    TOR: 10.0,
+    FONTSIZE: 14.0,
 
     /**
     * Get the Editor object by its ID
@@ -19926,10 +20799,13 @@ scilligence.apply(JSDraw2.Editor, {
         var data = scil.Utils.readCookie("__jsdrawclipboard");
         if (data == null || data == "")
             return null;
+
         data = JSDraw2.Base64.decode(data);
         var m = new JSDraw2.Mol();
         if (m.setXml(data) == null || m.isEmpty())
             return null;
+
+        //scil.Utils.createCookie("__jsdrawclipboard", "");
         return m;
     },
 
@@ -20100,7 +20976,7 @@ scilligence.apply(JSDraw2.Editor, {
             else {
                 args.div.style.border = "solid 1px #ddd";
                 JSDraw2.Editor.popupdlg.jsd = new JSDraw2.Editor(args.div);
-                this._loadData(value);
+                this._loadPopupData(value);
             }
 
             if (!scil.Utils.isIE || scil.Utils.isIE > 8)
@@ -20121,7 +20997,7 @@ scilligence.apply(JSDraw2.Editor, {
             //dojo.connect(JSDraw2.Editor.popupdlg.cancel, "onclick", fn2);
         }
         else {
-            this._loadData(value);
+            this._loadPopupData(value);
         }
 
         JSDraw2.Editor.popupdlg.button.innerHTML = scil.Utils.imgTag("tick.gif", btnText);
@@ -20130,7 +21006,7 @@ scilligence.apply(JSDraw2.Editor, {
         return JSDraw2.Editor.popupdlg.jsd;
     },
 
-    _loadData: function (value) {
+    _loadPopupData: function (value) {
         if (value == null) {
             JSDraw2.Editor.popupdlg.jsd.clear(true);
             return;
@@ -20299,6 +21175,631 @@ JSDraw2.Table = {
     }
 };﻿//////////////////////////////////////////////////////////////////////////////////
 //
+// JSDraw
+// Copyright (C) 2014 Scilligence Corporation
+// http://www.scilligence.com/
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+* Bracket class
+* @class scilligence.JSDraw2.Bracket
+*/
+JSDraw2.Bracket = scilligence.extend(scilligence._base, {
+    constructor: function (type, rect, shape) {
+        this.T = "BRACKET";
+        this.atoms = [];
+        this.type = type;
+        this._rect = rect;
+        this.color = null;
+        this.shape = shape;
+    },
+
+    clone: function () {
+        var b = new JSDraw2.Bracket(this.type, this._rect.clone(), this.shape);
+        b.color = this.color;
+        b.sgrouptexts = this.sgrouptexts;
+        return b;
+    },
+
+    getXbonds: function (m) {
+        var list = [];
+        var bonds = m.bonds;
+        for (var i = 0; i < bonds.length; ++i) {
+            var b = bonds[i];
+            var f1 = scil.Utils.indexOf(this.atoms, b.a1) >= 0;
+            var f2 = scil.Utils.indexOf(this.atoms, b.a2) >= 0;
+            if (f1 != f2)
+                list.push(b);
+        }
+
+        return list;
+    },
+
+    allAtomsIn: function (m) {
+        if (this.atoms.length == 0)
+            return false;
+        for (var i = 0; i < this.atoms.length; ++i) {
+            if (m.atoms.indexOf(this.atoms[i]) < 0)
+                return false;
+        }
+        return true;
+    },
+
+    getTypeNum: function () {
+        if (this.type == null)
+            return null;
+        var type = this.type + "";
+        if (type.match(/^[c][0-9]+$/))
+            return type.substr(1);
+        //        else if (type.match(/^[0-9]+$/))
+        //            return type;
+        return null;
+    },
+
+    getType: function () {
+        if (this.type == null)
+            return "";
+        var type = this.type + "";
+        if (type.match(/^[c][0-9]+$/))
+            type = "c";
+        //        else if (type.match(/^[0-9]+$/))
+        //            type = "mul";
+        return type;
+    },
+
+    getSubscript: function (m) {
+        var t = m.getSgroupText(this, "BRACKET_TYPE");
+        return t == null ? null : t.text;
+    },
+
+    createSubscript: function (m, s) {
+        if (scil.Utils.isNullOrEmpty(s))
+            return null;
+
+        var t = m.getSgroupText(this, "BRACKET_TYPE");
+        if (t != null)
+            return t;
+
+        var gap = m.medBondLength(1.56) / 2;
+        t = m.setSgroup(this, "BRACKET_TYPE", s, this._rect.right() + gap / 4, this._rect.bottom() - gap);
+        return t;
+    },
+
+    html: function (scale) {
+        //if (this.atoms == null || this.atoms.length == 0)
+        //    return;
+        var ss = "";
+
+        if (this.atoms != null && this.atoms.length > 0) {
+            ss = this.atoms[0].id + "";
+            for (var i = 1; i < this.atoms.length; ++i)
+                ss += "," + this.atoms[i].id;
+        }
+
+        var s = "<i i='" + this.id + "' x='" + this.T + "' t='" + scilligence.Utils.escXmlValue(this.type) + "'";
+        if (this.color != null)
+            s += " clr='" + this.color + "'";
+        if (this.shape != null)
+            s += " shape='" + this.shape + "'";
+        s += " r='" + this._rect.toString(scale) + "'";
+        s += " atoms='" + ss + "'></i>";
+        return s;
+    },
+
+    flipY: function (y) {
+    },
+
+    flipX: function (x) {
+    },
+
+    scale: function (s, origin) {
+        this._rect.scale(s, origin);
+    },
+
+    offset: function (dx, dy) {
+        this._rect.offset(dx, dy);
+    },
+
+    rect: function () {
+        return this._rect;
+    },
+
+    toggle: function (p, tor) {
+        var r = this._rect;
+        if (r == null)
+            return;
+        var x1 = p.x - r.left;
+        var x2 = r.right() - p.x;
+        return p.y >= r.top - tor && p.y <= r.bottom() + tor && (x1 >= -tor / 2 && x1 < tor || x2 >= -tor / 2 && x2 < tor);
+    },
+
+    drawCur: function (surface, r, color, m) {
+        var r2 = this._rect;
+        if (r2 == null)
+            return;
+        var y = r2.center().y;
+        surface.createCircle({ cx: r2.left, cy: y, r: r }).setFill(color);
+        surface.createCircle({ cx: r2.right(), cy: y, r: r }).setFill(color);
+
+        if (m != null) {
+            for (var i = 0; i < this.atoms.length; ++i)
+                this.atoms[i].drawCur(surface, r * 0.75, color);
+        }
+    },
+
+    draw: function (surface, linewidth, m, fontsize) {
+        var r = this._rect;
+
+        var color = this.color == null ? "gray" : this.color;
+        JSDraw2.Drawer.drawBracket(surface, r, color, linewidth);
+    },
+
+    drawSelect: function (lasso) {
+        lasso.draw(this, this._rect.fourPoints());
+    },
+
+    cornerTest: function (p, tor) {
+        return this._rect.cornerTest(p, tor);
+    },
+
+    resize: function (corner, d, texts) {
+        this._rect.moveCorner(corner, d);
+        if (texts == null)
+            return;
+        switch (corner) {
+            case "topleft":
+                for (var i = 0; i < texts.topleft.length; ++i)
+                    texts.topleft[i]._rect.offset(d.x, d.y);
+                for (var i = 0; i < texts.topright.length; ++i)
+                    texts.topright[i]._rect.offset(0, d.y);
+                for (var i = 0; i < texts.bottomleft.length; ++i)
+                    texts.bottomleft[i]._rect.offset(d.x, 0);
+                break;
+            case "topright":
+                for (var i = 0; i < texts.topright.length; ++i)
+                    texts.topright[i]._rect.offset(d.x, d.y);
+                for (var i = 0; i < texts.topleft.length; ++i)
+                    texts.topleft[i]._rect.offset(0, d.y);
+                for (var i = 0; i < texts.bottomright.length; ++i)
+                    texts.bottomright[i]._rect.offset(d.x, 0);
+                break;
+            case "bottomleft":
+                for (var i = 0; i < texts.bottomleft.length; ++i)
+                    texts.bottomleft[i]._rect.offset(d.x, d.y);
+                for (var i = 0; i < texts.bottomright.length; ++i)
+                    texts.bottomright[i]._rect.offset(0, d.y);
+                for (var i = 0; i < texts.topleft.length; ++i)
+                    texts.topleft[i]._rect.offset(d.x, 0);
+                break;
+            case "bottomright":
+                for (var i = 0; i < texts.bottomright.length; ++i)
+                    texts.bottomright[i]._rect.offset(d.x, d.y);
+                for (var i = 0; i < texts.bottomleft.length; ++i)
+                    texts.bottomleft[i]._rect.offset(0, d.y);
+                for (var i = 0; i < texts.topright.length; ++i)
+                    texts.topright[i]._rect.offset(d.x, 0);
+                break;
+        }
+    },
+
+    removeObject: function (obj) {
+        var a = JSDraw2.Atom.cast(obj);
+        if (a == null)
+            return;
+        for (var i = 0; i < this.atoms.length; ++i) {
+            if (this.atoms[i] == a) {
+                this.atoms.splice(i, 1);
+                break;
+            }
+        }
+    },
+
+    getTexts: function (m) {
+        var ret = { topleft: [], topright: [], bottomleft: [], bottomright: [] };
+        var c1 = this._rect.center();
+        for (var i = 0; i < m.graphics.length; ++i) {
+            var t = JSDraw2.Text.cast(m.graphics[i]);
+            if (t == null || t.anchors.length != 1 || t.anchors[0] != this)
+                continue;
+            var c = t._rect.center();
+            if (c.x < c1.x) {
+                if (c.y < c1.y)
+                    ret.topleft.push(t);
+                else
+                    ret.bottomleft.push(t);
+            }
+            else {
+                if (c.y < c1.y)
+                    ret.topright.push(t);
+                else
+                    ret.bottomright.push(t);
+            }
+        }
+
+        return ret;
+    }
+});
+
+JSDraw2.Bracket.cast = function (a) {
+    return a != null && a.T == 'BRACKET' ? a : null;
+};﻿//////////////////////////////////////////////////////////////////////////////////
+//
+// JSDraw
+// Copyright (C) 2014 Scilligence Corporation
+// http://www.scilligence.com/
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+* Group class - defines Object groups
+* @class scilligence.JSDraw2.Group
+*/
+JSDraw2.Group = scil.extend(scil._base, {
+    /**
+    * @constructor Group
+    * @param {string} name - group name
+    * @param {string} type - group type
+    */
+    constructor: function (name, type) {
+        this.T = "GROUP";
+        this.type = type;
+        this.name = name;
+        this.id = null;
+        this._rect = null;
+        this.p = null;
+        this.gap = 6.0;
+        this.group = null; // a group can belong to another group
+        this.color = null;
+        this.a = null;
+        this.ratio = null;
+        this.tag = null;
+    },
+
+    clone: function () {
+        var g = new JSDraw2.Group(this.name, this.type);
+        g.id = this.id;
+        g._rect = this._rect == null ? null : this._rect.clone();
+        g.p = this.p == null ? null : this.p.clone();
+        g.color = this.color;
+        g.gap = this.gap;
+        g.ratio = this.ratio;
+        g.tag = this.tag;
+        return g;
+    },
+
+    html: function (scale) {
+        var s = "<i i='" + this.id + "' x='" + this.T + "' t='" + scilligence.Utils.escXmlValue(this.type) + "' n='" + this.name + "'";
+        if (this.color != null)
+            s += " clr='" + this.color + "'";
+        if (this.gap > 0)
+            s += " gap='" + this.gap + "'";
+        s += "></i>";
+        return s;
+    },
+
+    readHtml: function (e) {
+        //this.p = JSDraw2.Point.fromString(e.getAttribute("p"));
+        var gap = parseFloat(e.getAttribute("gap"));
+        if (gap > 0)
+            this.gap = gap;
+    },
+
+    flipY: function (y) {
+    },
+
+    flipX: function (x) {
+    },
+
+    scale: function (s, origin) {
+    },
+
+    offset: function (dx, dy) {
+    },
+
+    rect: function () {
+        return this._rect;
+    },
+
+    toggle: function (p, tor) {
+        var r = this._rect;
+        if (r == null)
+            return;
+        return p.y >= r.top && p.y <= r.bottom() && (Math.abs(p.x - r.left) < tor / 2 || Math.abs(p.x - r.right()) < tor / 2) ||
+            p.x >= r.left && p.x <= r.right() && (Math.abs(p.y - r.top) < tor / 2 || Math.abs(p.y - r.bottom()) < tor / 2);
+    },
+
+    drawCur: function (surface, r, color, m) {
+        var r2 = this._rect;
+        if (r2 == null)
+            return;
+        var c = r2.center();
+        surface.createCircle({ cx: r2.left, cy: c.y, r: r }).setFill(color);
+        surface.createCircle({ cx: r2.right(), cy: c.y, r: r }).setFill(color);
+        surface.createCircle({ cx: c.x, cy: r2.top, r: r }).setFill(color);
+        surface.createCircle({ cx: c.x, cy: r2.bottom(), r: r }).setFill(color);
+
+        if (m != null) {
+            for (var i = 0; i < m.atoms.length; ++i) {
+                if (m.atoms[i].group != this)
+                    continue;
+                m.atoms[i].drawCur(surface, r * 0.75, color);
+            }
+            for (var i = 0; i < m.graphics.length; ++i) {
+                if (m.graphics[i].group != this)
+                    continue;
+                m.graphics[i].drawCur(surface, r * 0.75, color);
+            }
+        }
+    },
+
+    _updateRect: function (m, bondlength) {
+        var r = m.getGroupRect(this, bondlength);
+        this._rect = r;
+        return r;
+    },
+
+    draw: function (surface, linewidth, m, fontsize) {
+        var r = this._rect;
+        if (r == null)
+            return;
+
+        var color = this.color == null ? "gray" : this.color;
+        //r.inflate(this.gap * linewidth, this.gap * linewidth);
+        if (this.type == "chiral") {
+            JSDraw2.Drawer.drawLabel(surface, new JSDraw2.Point(r.left + r.width / 2, r.top - fontsize), this.name, color, fontsize, false);
+        }
+        else {
+            JSDraw2.Drawer.drawRect(surface, r, color, linewidth / 4, linewidth * 3); //.setFill("#ffffff");
+            JSDraw2.Drawer.drawLabel(surface, new JSDraw2.Point(r.left + r.width / 2, r.bottom() + fontsize / 2), this.name, color, fontsize, false);
+        }
+
+        if (!scil.Utils.isNullOrEmpty(this.tag))
+            JSDraw2.Drawer.drawLabel(surface, new JSDraw2.Point(r.left, r.top - fontsize), this.tag, "black", fontsize, false, "start");
+        if (!scil.Utils.isNullOrEmpty(this.ratio))
+            JSDraw2.Drawer.drawLabel(surface, new JSDraw2.Point(r.right(), r.bottom() + fontsize / 2), "ratio: " + this.ratio, "black", fontsize, false, "end");
+    },
+
+    drawSelect: function (lasso) {
+        lasso.draw(this, this._rect.fourPoints());
+    }
+});
+
+JSDraw2.Group.cast = function (a) {
+    return a != null && a.T == 'GROUP' ? a : null;
+};﻿//////////////////////////////////////////////////////////////////////////////////
+//
+// JSDraw
+// Copyright (C) 2014 Scilligence Corporation
+// http://www.scilligence.com/
+//
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+* Text class
+* @class scilligence.JSDraw2.Text
+*/
+JSDraw2.Text = scilligence.extend(scilligence._base, {
+    /**
+    @property {Rect} _rect Position
+    */
+    /**
+    @property {string} text Text value
+    */
+    /**
+    @property {string} color Display Color
+    */
+    /**
+    @property {bool} selected Selecting Flag
+    */
+
+    /**
+    * @constructor Text
+    * @param {Rect} r - the position
+    * @param {string} text - text value
+    */
+    constructor: function (r, text) {
+        this.T = "TEXT";
+        this._rect = r;
+        this.text = text;
+        this.color = null;
+        this.fontsize = 1.0;
+        this.selected = false;
+        this.fieldtype = null;
+        this.readonly = false;
+        this.anchors = [];
+        this.italic = null;
+    },
+
+    clone: function () {
+        var a = new JSDraw2.Text(this._rect.clone(), this.text);
+        a.id = this.id;
+        a.color = this.color;
+        a.fieldtype = this.fieldtype;
+        a.readonly = this.readonly;
+        a.fontsize = this.fontsize;
+        a.italic = this.italic;
+        return a;
+    },
+
+    allAnchorsIn: function (m) {
+        if (this.anchors.length == 0)
+            return false;
+        for (var i = 0; i < this.anchors.length; ++i) {
+            var a = this.anchors[i];
+            if (JSDraw2.Atom.cast(a) != null && m.atoms.indexOf(a) < 0 ||
+                JSDraw2.Bond.cast(a) != null && m.bonds.indexOf(a) < 0 ||
+                JSDraw2.Bracket.cast(a) != null && m.graphics.indexOf(a) < 0)
+                return false;
+        }
+        return true;
+    },
+
+    attach: function (obj) {
+        // anchors can contain one bracket, or any number of atoms and/or bonds
+        if (JSDraw2.Bracket.cast(obj) != null) {
+            this.anchors = [obj];
+            return true;
+        }
+
+        if (JSDraw2.Atom.cast(obj) == null && JSDraw2.Bond.cast(obj) == null)
+            return false;
+
+        if (this.anchors.length == 1 && JSDraw2.Bracket.cast(this.anchors[0]) != null)
+            this.objects = [];
+
+        for (var i = 0; i < this.anchors.length; ++i) {
+            if (this.anchors[i] == obj) {
+                this.anchors.splice(i, 1);
+                return true;
+            }
+        }
+        this.anchors.push(obj);
+        return true;
+    },
+
+    html: function (scale) {
+        var ss = "";
+        for (var i = 0; i < this.anchors.length; ++i)
+            ss += (ss == "" ? "" : ",") + this.anchors[i].id;
+        var s = "<i i='" + this.id + "' x='" + this.T + "' p='" + this._rect.toString(scale) + "'";
+        if (this.color != null && this.color != "")
+            s += " clr='" + this.color + "'";
+        if (this.fontsize > 0)
+            s += " fontsize='" + this.fontsize.toFixed(2) + "'";
+        if (this.readonly)
+            s += " v='1'";
+        if (this.italic)
+            s += " italic='1'";
+        if (this.fieldtype != null && this.fieldtype != "")
+            s += " fieldtype='" + scil.Utils.escXmlValue(this.fieldtype) + "'";
+        if (ss != "")
+            s += " anchors='" + ss + "'";
+        s += ">" + scilligence.Utils.escXmlValue(this.text) + "</i>";
+        return s;
+    },
+
+    readHtml: function (e, map) {
+        var r = JSDraw2.Rect.fromString(e.getAttribute("p"));
+        var s = e.getAttribute("s");
+        if (s == null)
+            s = e.text || e.textContent;
+        if (r == null || scil.Utils.isNullOrEmpty(s))
+            return false;
+
+        // I#6220: p="27.495 -5.105 570.397 0.901"
+        if (r.width > r.height * 100)
+            r.width = r.height * 5.0;
+        if (r.height > r.height * 100)
+            r.height = r.width / 5.0;
+
+        this._rect = r;
+        this.text = s;
+        this.readonly = scil.Utils.isTrue(e.getAttribute("v"));
+        this.italic = scil.Utils.isTrue(e.getAttribute("italic"));
+        this.dummy = scil.Utils.isTrue(e.getAttribute("dum"));
+        this.fieldtype = e.getAttribute("fieldtype");
+
+        var fontsize = parseFloat(e.getAttribute("fontsize"));
+        if (fontsize > 0)
+            this.fontsize = fontsize;
+
+        var s2 = e.getAttribute("anchors");
+        if (s2 != null && s2 != "") {
+            var anchors = [];
+            var ss = s2.split(',');
+            for (var j = 0; j < ss.length; ++j) {
+                var a = map[parseInt(ss[j])];
+                if (a != null && (JSDraw2.Atom.cast(a) != null || JSDraw2.Bond.cast(a) != null || JSDraw2.Bracket.cast(a) != null))
+                    anchors.push(a);
+            }
+            this.anchors = anchors;
+        }
+        return true;
+    },
+
+    flipY: function (y) {
+    },
+
+    flipX: function (x) {
+    },
+
+    scale: function (s, origin) {
+        if (this._rect != null)
+            this._rect.scale(s, origin);
+    },
+
+    offset: function (dx, dy) {
+        if (this._rect != null)
+            this._rect.offset(dx, dy);
+    },
+
+    rect: function () {
+        return this._rect == null ? null : this._rect.clone();
+    },
+
+    toggle: function (p, tor) {
+        return this._rect != null && this._rect.contains(p);
+    },
+
+    removeObject: function (obj) {
+        for (var i = 0; i < this.anchors.length; ++i) {
+            if (this.anchors[i] == obj) {
+                this.anchors.splice(i, 1);
+                break;
+            }
+        }
+    },
+
+    drawCur: function (surface, r, color, m) {
+        var p = this._rect.center();
+        surface.createCircle({ cx: p.x, cy: p.y, r: r }).setFill(color);
+
+        if (m != null) {
+            for (var i = 0; i < this.anchors.length; ++i)
+                this.anchors[i].drawCur(surface, r * 0.75, color);
+        }
+    },
+
+    draw: function (surface, linewidth, m, fontsize) {
+        var s = this.text;
+        if (s == null)
+            return;
+
+        var r = this._rect;
+        var fs = fontsize * (this.fontsize > 0 ? this.fontsize : 1.0);
+        var color = this.color == null || this.color.length == 0 ? "black" : this.color;
+        var t = JSDraw2.Drawer.drawText(surface, new JSDraw2.Point(r.left, r.top), s, color, fs, null, this.italic);
+        r.width = t == null ? 0 : t.getTextWidth();
+        r.height = fs + 4;
+
+        //var ss = s.match(/[ ]{0,}[a-z|0-9|*|$|@|?|!][ ]{0,}[=]/gi);
+        //if (ss != null) {
+        //    var c = ss[0].substr(0, ss[0].indexOf('='));
+        //    c = scilligence.Utils.trim(c);
+        //    for (var i = 0; i < this.anchors.length; ++i) {
+        //        var b = JSDraw2.Bond.cast(this.anchors[i]);
+        //        if (b != null)
+        //            JSDraw2.Drawer.drawLabel(surface, b.center(), c, color, fontsize * 0.85);
+        //    }
+        //}
+    },
+
+    drawSelect: function (lasso) {
+        lasso.draw(this, this._rect.fourPoints());
+    }
+});
+
+JSDraw2.Text.cast = function (a) {
+    return a != null && a.T == 'TEXT' ? a : null;
+};﻿//////////////////////////////////////////////////////////////////////////////////
+//
 // JSDraw.Lite
 // Copyright (C) 2016 Scilligence Corporation
 // http://www.scilligence.com/
@@ -20320,7 +21821,9 @@ scil.Lang = {
     token: "translate",
     key: "scil_lang",
     current: null,
+    language: null,
     en: {},
+    cn: {},
 
     add: function (dict, lang) {
         if (dict == null)
@@ -20348,9 +21851,13 @@ scil.Lang = {
         lang = lang.toLowerCase();
         if (lang == "zh")
             lang = "cn";
+
+        this.language = lang;
         this.current = this[lang];
-        if (this.current == null)
+        if (this.current == null) {
             this.current = this.en;
+            this.language = null;
+        }
 
         JSDraw2.Language.use(lang);
     },
@@ -20605,6 +22112,8 @@ scil.ContextMenu = scil.extend(scil._base, {
         for (var i = 0; i < this.items.length; ++i) {
             var item = this.items[i];
             if (item == "-") {
+                if (i == 0 || this.items[i - 1] == "-" || i == this.items.length - 1)
+                    continue;
                 var tr = scil.Utils.createElement(this.tbody, "tr");
                 scil.Utils.createElement(tr, "td", null, { textAlign: "center", width: "20px", backgroundColor: "#f5f5f5" });
                 scil.Utils.createElement(tr, "td", "<hr style='margin:0;padding:0'>", { padding: "0 2px 0 2px" }).colSpan = 3;
@@ -20823,6 +22332,8 @@ scil.Dialog = scil.extend(scil._base, {
             this.dialogmask.style.display = "none";
         }
 
+        this.dialog.style.borderColor = modal ? "#fff" : JSDraw2.Skin.dialog.bkcolor;
+
         if (scilligence.Utils.isTouch || immediately) {
             dojo.style(this.dialog, { display: "", opacity: 1.00, filter: 'alpha(opacity=100)' });
         }
@@ -20908,13 +22419,17 @@ scil.Dialog = scil.extend(scil._base, {
         if (w > 0 || h > 0)
             scil.apply(style, { width: w > 0 ? w : null, height: h > 0 ? h : null, overflow: "scroll" });
 
+        if (this.options.bodystyle != null)
+            scil.apply(style, this.options.bodystyle);
+
         var div = scil.Utils.createElement(td, "div", null, style);
         if (typeof this.body == "string")
             div.innerHTML = "<div>" + this.body + "</div>";
         else
             div.appendChild(this.body);
 
-        this.dialogmask = scilligence.Utils.createElement(topBody, 'div', null, { position: "absolute", top: "0", left: "0", minHeight: "100%", height: "100%", width: "100%", background: "#999", opacity: ".75", filter: "alpha(opacity=75)", zIndex: zi - 1 });
+        var opacity = this.options.opacity > 0 ? this.options.opacity : 75;
+        this.dialogmask = scilligence.Utils.createElement(topBody, 'div', null, { position: "absolute", top: "0", left: "0", minHeight: "100%", height: "100%", width: "100%", background: "#999", opacity: opacity / 100.0, filter: "alpha(opacity=" + opacity + ")", zIndex: zi - 1 });
         dojo.connect(window, "onresize", function () { me.resize(); });
         dojo.connect(window, "onscroll", function () { me.scroll(); });
 
@@ -20953,6 +22468,10 @@ scil.Dialog = scil.extend(scil._base, {
     },
 
     startMove: function (e) {
+        this.movingSt = null;
+        var src = e.srcElement || e.target;
+        if (src.tagName == "IMG")
+            return;
         this.movingSt = new JSDraw2.Point(e.clientX, e.clientY);
     },
 
@@ -21093,6 +22612,7 @@ JsDialog = JSDraw2.Dialog = scil.Dialog;﻿/////////////////////////////////////
 *    table and text: table, tabtext, richtext, html, plaintext
 *    chemistry and biology: jsdraw, jdraw.fm, jsdraw.se, jsdraw.table, plate, sketches, plates
 *    file: file, filepath, filelink, filedblink, image
+*    form: subform
 * <b>Example:</b>
 *    &lt;script type="text/javascript"&gt;
 *        dojo.ready(function () {
@@ -21211,8 +22731,12 @@ scil.Form = scil.extend(scil._base, {
             if (data != null) {
                 v = data[id];
                 var item = this.items[id];
-                if (v == null && item != null && item.alternativekey != null)
-                    v = data[item.alternativekey];
+                if (v == null && item != null) {
+                    if (item.alternativekey != null)
+                        v = data[item.alternativekey];
+                    if (v == null && item.was != null)
+                        v = data[item.was];
+                }
             }
 
             if (overwritemode) {
@@ -21337,7 +22861,7 @@ scil.Form = scil.extend(scil._base, {
     render2: function (items, parent, options) {
         var align = options == null ? null : options.align;
         var buttons = options == null ? null : options.buttons;
-        var immediately = typeof (options) == "boolean" ? options : (options == null ? null : options.immediately);
+        var immediately = typeof (options) == "boolean" ? options : (options == null ? true : options.immediately != false);
 
         this.tbody = null;
         this.fields = {};
@@ -21382,7 +22906,10 @@ scil.Form = scil.extend(scil._base, {
         var lastitem = null;
         for (var id in this.items) {
             var item = this.items[id];
-            if (item.type == "group") {
+            if (typeof (item) == "function") {
+                continue;
+            }
+            else if (item.type == "group") {
                 tr = scil.Utils.createElement(this.tbody, "tr");
                 colspan = cols;
             }
@@ -21420,18 +22947,20 @@ scil.Form = scil.extend(scil._base, {
             scil.Utils.createElement(tr, "td", "&nbsp;");
             tr = scil.Utils.createElement(this.tbody, "tr");
             this.buttonTR = tr;
-            if (options == null || !options.vertical) {
+
+            if (options == null || !options.vertical)
                 scil.Utils.createElement(tr, "td");
-            }
-            var td = scil.Utils.createElement(tr, "td");
+
+            var td = scil.Utils.createElement(tr, "td", null, { whiteSpace: "nowrap" });
             if (options.centerbuttons)
                 td.style.textAlign = "center";
             if (buttons.length > 0) {
                 for (var i = 0; i < buttons.length; ++i) {
-                    if (buttons[i] == " ")
+                    var b = buttons[i];
+                    if (b == " ")
                         scil.Utils.createElement(td, "span", "&nbsp;");
                     else
-                        this.buttons.push(scil.Utils.createButton(td, buttons[i], this.lang));
+                        this.buttons.push(scil.Utils.createButton(td, b, this.lang));
                 }
             }
             else {
@@ -21451,6 +22980,12 @@ scil.Form = scil.extend(scil._base, {
         scil.Utils.ajaxUploadFile(this.postform, url, params, callback);
     },
 
+    postForm: function (url, params, callback) {
+        if (this.postform == null)
+            return;
+        scil.Utils.ajaxUploadFile(this.postform, url, params, callback);
+    },
+
     /**
     * Check required fields
     * @function checkRequiredFields
@@ -21465,6 +23000,10 @@ scil.Form = scil.extend(scil._base, {
                 continue;
 
             item.td1.style.backgroundColor = JSDraw2.Skin.form.labelstyles.backgroundColor;
+            if (item.type == "jsdraw.table") {
+                n += field.jsd.checkRequiredFields(0);
+            }
+
             if (!item.required)
                 continue;
 
@@ -21607,10 +23146,19 @@ scil.Form = scil.extend(scil._base, {
     },
 
     focus: function (key) {
+        scil.Form.focus(this.fields, key);
+    }
+});
+
+scil.apply(scil.Form, {
+    focus: function (fields, key) {
+        if (fields == null)
+            return;
+
         var field = null;
         if (key == null) {
-            for (var k in this.fields) {
-                var f = this.fields[k];
+            for (var k in fields) {
+                var f = fields[k];
                 if (f != null && (f.tagName == "INPUT" || f.tagName == "TEXTAREA" || f.tagName == "SELECT") && !f.disabled && !f.readOnly) {
                     var tr = scil.Utils.getParent(f, "TR");
                     if (tr != null && tr.style.display != "none" && !f.disabled) {
@@ -21621,7 +23169,7 @@ scil.Form = scil.extend(scil._base, {
             }
         }
         else {
-            field = this.fields[key];
+            field = fields[key];
         }
 
         if (field != null && field.style.dislay != "none" && field.focus != null) {
@@ -21631,10 +23179,8 @@ scil.Form = scil.extend(scil._base, {
             catch (e) {
             }
         }
-    }
-});
+    },
 
-scil.apply(scil.Form, {
     mergeForm: function (src1, src2) {
         if (src1 == null && src2 == null)
             return null;
@@ -21697,7 +23243,7 @@ scil.apply(scil.Form, {
     },
 
     _isAllString: function (s) {
-        if (s == null && typeof (s) != "object")
+        if (s == null || typeof (s) != "object")
             return false;
 
         if (s.length > 0)
@@ -21754,6 +23300,9 @@ scil.apply(scil.Form, {
             case "password":
                 tag = "password";
                 break;
+            case "rawfile":
+                tag = "file";
+                break;
             case "number":
                 tag = "input";
                 break;
@@ -21777,11 +23326,16 @@ scil.apply(scil.Form, {
             case "filepath":
             case "filelink":
             case "filedblink":
+            case "subform":
             case "image":
             case "curve":
             case "sketches":
             case "code":
+            case "signature":
                 tag = "div";
+                break;
+            case "button":
+                tag = "button";
                 break;
             case "postfile":
                 tag = "file";
@@ -21905,7 +23459,12 @@ scil.apply(scil.Form, {
             field.style.color = JSDraw2.Skin.form.fieldcolor;
         field.stype = itemtype;
 
-        var args = item.options == null ? scil.clone(item) : item.options;
+        // I#10377
+        // var args = item.options == null ? scil.clone(item) : item.options;
+        var args = scil.clone(item);
+        if (item.options != null)
+            scil.apply(args, item.options);
+
         if (viewonly)
             args.viewonly = viewonly;
 
@@ -21992,6 +23551,11 @@ scil.apply(scil.Form, {
             if (value != null)
                 field.jsd.setValue(value);
         }
+        else if (itemtype == "signature") {
+            field.jsd = new scil.FieldSignature(field, args);
+            if (value != null)
+                field.jsd.setValue(value);
+        }
         else if (itemtype == "richtext") {
             field.jsd = new scil.FieldRichText(field, args);
             if (value != null)
@@ -21999,6 +23563,11 @@ scil.apply(scil.Form, {
         }
         else if (itemtype == "plaintext") {
             field.jsd = new scil.FieldPlainText(field, args);
+            if (value != null)
+                field.jsd.setXml(value);
+        }
+        else if (itemtype == "subform") {
+            field.jsd = new scil.FieldSubform(field, args);
             if (value != null)
                 field.jsd.setXml(value);
         }
@@ -22039,7 +23608,7 @@ scil.apply(scil.Form, {
         }
         else if (itemtype == "date") {
             if (!viewonly && !item.viewonly)
-                new scil.DatePicker(field);
+                new scil.DatePicker(field, item.options);
             if (value != null) {
                 if (value == "{today}")
                     value = scil.Utils.dateStr(new Date(), true, "yyyy-mm-dd");
@@ -22049,6 +23618,9 @@ scil.apply(scil.Form, {
         else if (itemtype == "color") {
             field.jsd = new scil.ColorPicker2(field, { viewonly: viewonly });
             this.setFieldData(field, item, viewonly, value, values);
+        }
+        else if (itemtype == "button") {
+            field.innerHTML = item.text;
         }
         else {
             if (value != null || itemtype == "html" && (item.template != null || item.render != null))
@@ -22060,7 +23632,7 @@ scil.apply(scil.Form, {
         if (item.title != null)
             field.setAttribute("title", item.title);
         if (item.onclick != null)
-            dojo.connect(field, "onclick", function () { item.onclick(field, item); });
+            dojo.connect(field, "onclick", function () { item.onclick(field, item, form); });
         if (field.tagName == "INPUT") {
             if (item.onenter != null)
                 dojo.connect(field, "onkeydown", function (e) { if (e.keyCode == 13) { item.onenter(field); e.preventDefault(); } });
@@ -22079,24 +23651,23 @@ scil.apply(scil.Form, {
         if (item.items != null)
             options.items = item.items;
 
-        if (itemtype == "editableselect")
+        if (!viewonly && itemtype == "editableselect")
             field.jsd = new scil.EditableSelect(field, options);
-        else if (itemtype == "dropdowninput")
+        else if (!viewonly && itemtype == "dropdowninput")
             field.jsd = new scil.DropdownInput(field, options);
-        else if (itemtype == "dropdowncheck")
+        else if (!viewonly && itemtype == "dropdowncheck")
             field.jsd = new scil.DropdownCheck(field, options);
-        else if (itemtype == "multiselect")
+        else if (!viewonly && itemtype == "multiselect")
             field.jsd = new scil.DropdownCheck(field, options);
         else if (!viewonly && itemtype == "htmltext") {
-            var args = {};
-            args.buttons = [{ id: "insertimage", iconurl: scil.Utils.imgSrc("img/add.gif"), tooltips: "Insert Image", onclick: function (ed) { scil.Form.insertImage(ed); } }];
-            args.buttons1 = "bold,italic,underline,strikethrough,|,fontsizeselect,|,bullist,numlist,|,outdent,indent,|,sub,sup,|,insertimage";
-            if (item.fullscreen) {
-                args.plugins = "fullscreen";
-                args.buttons1 += ",|,fullscreen";
-            }
-            if (item.extrabuttons != null)
-                args.buttons1 += item.extrabuttons;
+            if (args.buttons == null)
+                args.buttons = [];
+            else if (typeof (args.buttons) == "string")
+                args.buttons = [args.buttons];
+            args.buttons.push({ iconurl: scil.Utils.imgSrc("img/uploadimg.gif"), tooltips: "Insert Image", onclick: function (ed) { scil.Richtext.insertImage(ed); } });
+            args.buttons.push({ iconurl: scil.Utils.imgSrc("img/benzene.gif"), tooltips: "Insert Structure", onclick: function (ed) { scil.Richtext.insertStructure(ed); } });
+            if (args.extrabuttons != null)
+                args.buttons.push(args.extrabuttons);
             if (value != null && value == "")
                 field.value = value;
             scil.Richtext.initTinyMCE(field, args);
@@ -22126,6 +23697,9 @@ scil.apply(scil.Form, {
 
         if (field.tagName == "INPUT" && field.disabled != true && item.type != "checkbox" && item.type != "radio")
             dojo.connect(field, "onfocus", function () { field.select(); });
+
+        if (field.jsd != null)
+            field.jsd.parentform = form;
 
         return field;
     },
@@ -22172,20 +23746,22 @@ scil.apply(scil.Form, {
             return field.checked;
         else if (field.stype == "htmltext") {
             var ed = scil.Form.getEd(field);
-            return ed == null ? field.innerHTML : ed.getContent();
+            return ed == null ? field.innerHTML : scil.Richtext.getHtml(ed);
         }
         else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" ||
             field.stype == "image" || field.stype == "curve" || field.stype == "sketches")
             return field.jsd.getXml();
-        else if (field.stype == "tabtext" || field.stype == "richtext" || field.stype == "plaintext")
+        else if (field.stype == "tabtext" || field.stype == "richtext" || field.stype == "plaintext" || field.stype == "subform")
             return field.jsd.getXml();
         else if (field.stype == "code")
+            return field.jsd.getValue();
+        else if (field.stype == "signature")
             return field.jsd.getValue();
         else if (field.stype == "number")
             return field.jsd.getValue();
         else if (field.type == "password")
-            return field.value == "" ? "" : (JSDraw2.password != null && JSDraw2.password.encrypt && scil.Form.encryptpassword != null ? scil.Form.encryptpassword(field.value) : field.value);
-        else if (field.stype == "postfile")
+            return field.value == "" ? "" : (item.encrypt != false && JSDraw2.password != null && JSDraw2.password.encrypt && scil.Form.encryptpassword != null ? scil.Form.encryptpassword(field.value) : field.value);
+        else if (field.stype == "postfile" || field.stype == "button")
             return null;
         else {
             if (field.value == null)
@@ -22259,20 +23835,29 @@ scil.apply(scil.Form, {
             }
         }
         else if (item.type == "date") {
+            if (typeof (value) == "string" && !scil.Utils.isNullOrEmpty(value) && !isNaN(value)) {
+                value = parseFloat(value);
+                if (isNaN(value))
+                    value = null;
+            }
+            var s = item.timeformat == null ? scil.Utils.dateStr(value, true, item.dateformat) : scil.Utils.timeStr(value, true, item.timeformat);
             if (viewonly) {
                 if (field.tagName == "INPUT")
-                    field.value = scil.Utils.dateStr(value, true, "yyyy-mm-dd");
+                    field.value = s;
                 else
-                    this._setInnerHTML(field, scil.Utils.dateStr(value, true), originalvalue);
+                    this._setInnerHTML(field, s, originalvalue);
             }
             else {
-                field.value = scil.Utils.dateStr(value, true, "yyyy-mm-dd");
+                field.value = s;
             }
         }
         else if (item.type == "color") {
             field.jsd.setValue(value);
         }
         else if (field.stype == "code") {
+            field.jsd.setValue(value);
+        }
+        else if (field.stype == "signature") {
             field.jsd.setValue(value);
         }
         else if (field.stype == "number") {
@@ -22286,7 +23871,7 @@ scil.apply(scil.Form, {
                 s = "<a target=_blank href='" + s + "'>" + s + "</a>";
             this._setInnerHTML(field, s, originalvalue);
         }
-        else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" || field.stype == "image" || field.stype == "curve" || field.stype == "sketches") {
+        else if (field.stype == "file" || field.stype == "filelink" || field.stype == "filedblink" || field.stype == "filepath" || field.stype == "image" || field.stype == "curve" || field.stype == "sketches" || field.stype == "subform") {
             field.jsd.setXml(value);
         }
         else if (field.stype == "fileshelf") {
@@ -22294,11 +23879,11 @@ scil.apply(scil.Form, {
         }
         else if (item.type == "htmltext") {
             if (viewonly) {
-                this._setInnerHTML(field, field.innerHTML = value == null ? "" : value, originalvalue);
+                this._setInnerHTML(field, field.innerHTML = value == null ? "" : value, originalvalue, true);
             }
             else {
                 var ed = scil.Form.getEd(field);
-                if (ed != null)
+                if (ed != null && ed.dom != null)
                     ed.setContent(value == null ? "" : value);
                 else
                     field.value = value == null ? "" : value;
@@ -22308,9 +23893,12 @@ scil.apply(scil.Form, {
             if (field.tagName == "TEXTAREA")
                 field.value = value == null ? "" : value;
             else
-                this._setInnerHTML(field, this.wrapTextarea(value), originalvalue);
+                this._setInnerHTML(field, this.wrapTextarea(value), originalvalue, true);
         }
-        else if (field.stype != "div") {
+        else if (field.stype != "div" && field.stype != "button") {
+            if (field.stype == "hidden" && value != null && typeof (value) == "object" && value.tagName != null) // I#10361
+                value = scil.Utils.getOuterXml(value);
+
             if (field.tagName == "INPUT" || field.tagName == "TEXTAREA")
                 field.value = value == null ? "" : value;
             else if (field.tagName == "DIV")
@@ -22326,8 +23914,13 @@ scil.apply(scil.Form, {
         return value == null ? "" : "<pre style='margin:0;padding:0;" + whitespace + "'>" + scil.Utils.escapeHtml(value) + "</pre>";
     },
 
-    _setInnerHTML: function (field, value, originalvalue) {
-        field.innerHTML = value == null ? "" : value;
+    _setInnerHTML: function (field, value, originalvalue, clear) {
+        if (value == null)
+            value = "";
+        else if (clear)
+            value += "<div style='clear:both'></div>"; // I#11990
+
+        field.innerHTML = value;
 
         // very tricky: in chrome:
         //     0 == "" -> true
@@ -22396,6 +23989,11 @@ scil.apply(scil.Form, {
 
     /**
     * Create a HTML form
+    * @function {static} createForm2
+    * @param {DOM} parent parent element
+    * @param {array} items an array of field definitions. item: { id, iskey ... }
+    * @param {dict} buttons button definition: { label, onclick }
+    * @returns a form object
     * <pre>
     * <b>Example:</b>
     *    dojo.ready(function () {
@@ -22407,11 +24005,7 @@ scil.apply(scil.Form, {
     *        };
     *        var form = scil.Form.createForm2(parent, items, { label: "Login", onclick: function () { alert("Blah..." } });
     *    });
-    * @function {static} createForm2
-    * @param {DOM} parent parent element
-    * @param {array} items an array of field definitions. item: { id, iskey ... }
-    * @param {dict} buttons button definition: { label, onclick }
-    * @returns a form object
+    * </pre>
     */
     createForm2: function (parent, items, buttons, options) {
         if (options == null)
@@ -22700,6 +24294,30 @@ scil.apply(scil.Form, {
         }
     },
 
+    setButtonValueByKey: function (buttons, key, s) {
+        if (buttons == null)
+            return;
+
+        for (var i = 0; i < buttons.length; ++i) {
+            if (buttons[i].key == key) {
+                buttons[i].b.value = s == null ? "" : s;
+                break;
+            }
+        }
+    },
+
+    setButtonValueByKey: function (buttons, key, value) {
+        if (buttons == null || scil.Utils.isNullOrEmpty(key) || scil.Utils.isNullOrEmpty(value))
+            return;
+
+        for (var i = 0; i < buttons.length; ++i) {
+            if (buttons[i].key == key) {
+                buttons[i].b.value = value;
+                break;
+            }
+        }
+    },
+
     getButtonValueByKey: function (buttons, key) {
         if (buttons == null)
             return null;
@@ -22728,7 +24346,7 @@ scil.apply(scil.Form, {
             tr = scil.Utils.createElement(scil.Utils.createTable2(parent, null, { cellSpacing: 0, cellPadding: 0, align: tableAlign }), "tr");
 
         for (var i = 0; i < buttons.length; ++i) {
-            if (i == 0 && (buttons[i] == "-" || buttons[i] == "|"))
+            if ((i == 0 || buttons[i - 1] == "-" || buttons[i - 1] == "|") && (buttons[i] == "-" || buttons[i] == "|"))
                 continue;
 
             if (tableAlign != null)
@@ -22760,7 +24378,7 @@ scil.apply(scil.Form, {
                 l.style.marginLeft = padding + "px";
             }
             b = scil.Utils.createElement(parent, "select", null, button.styles, button.attributes);
-            scil.Utils.listOptions(b, button.items || button.options, null, null, button.sort);
+            scil.Utils.listOptions(b, button.items || button.options, button.value, null, button.sort);
             if (button.onchange != null)
                 dojo.connect(b, "onchange", function (b) { button.onchange(b); });
             b.style.marginRight = padding + "px";
@@ -22773,14 +24391,19 @@ scil.apply(scil.Form, {
             b = scil.Utils.createElement(parent, "input", null, button.styles, button.attributes);
             if (button.onenter != null)
                 dojo.connect(b, "onkeydown", function (e) { if (e.keyCode == 13) button.onenter(b); });
+            if (button.onchange != null)
+                dojo.connect(b, "onchange", function (b) { button.onchange(b); });
             if (button.autosuggesturl != null)
-                new scil.AutoComplete(b, button.autosuggesturl);
+                new scil.AutoComplete(b, button.autosuggesturl, { onsuggest: button.onsuggest });
             b.style.marginRight = padding + "px";
 
             if (button.type == "date")
                 new scil.DatePicker(b);
             else if (button.type == "color")
                 new scil.ColorPicker2(b);
+
+            if (button.value != null)
+                b.value = button.value;
         }
         else {
             b = scil.Utils.createButton(parent, button);
@@ -22791,21 +24414,6 @@ scil.apply(scil.Form, {
 
     getEd: function (field) {
         return tinymce.get(field.id);
-    },
-
-    insertImage: function (ed) {
-        var url = JSDraw2.defaultoptions.imageserviceurl;
-        if (url == null || url == "") {
-            url = "./HelpService.aspx";
-            //scil.Utils.alert("*JSDraw2.defaultoptions.imageserviceurl* is not set yet");
-            //return;
-        }
-
-        scil.Richtext.saveBookmark(ed);
-        scil.Utils.uploadFile("Insert Image", 'Choose a picture file:', url + "?cmd=help.uploadimage", function (ret) {
-            var html = "<img src='" + url + "?imageid=" + ret.imageid + "'>";
-            scil.Richtext.restoreBookmark(ed, html);
-        });
     },
 
     dict2formxml: function (dict) {
@@ -22831,7 +24439,7 @@ scil.apply(scil.Form, {
     },
 
     encryptpassword: function (s) {
-        if (this.isNullOrEmpty(s))
+        if (scil.Utils.isNullOrEmpty(s))
             return null;
 
         var Key = CryptoJS.enc.Utf8.parse(JSDraw2.password != null && JSDraw2.password.key != null ? JSDraw2.password.key : "PSVJQRk9qTEp!6U1dWUZ%RVFG=1VVT0=");
@@ -23037,7 +24645,7 @@ scil.AutoComplete = scil.extend(scilligence._base, {
         scil.AutoComplete._all.push(this);
     },
 
-    validateList: function() {
+    validateList: function () {
         var s = this.input.value;
         if (this.items == null || scil.Utils.indexOf(this.items, s) < 0)
             this.input.value = "";
@@ -23075,12 +24683,20 @@ scil.AutoComplete = scil.extend(scilligence._base, {
             var ret = this.filterlist(this.url.substr(5).split(','), this.input.value);
             this.list(ret, sugid);
         }
+        else if (scil.Utils.startswith(this.url, "javascript:")) {
+            var s = this.url.substr(11);
+            var fn = scil.Utils.eval(s);
+            var items = fun(this);
+
+            var ret = this.filterlist(items, this.input.value);
+            this.list(ret, sugid);
+        }
         else {
             // url to ajax call
             var me = this;
             var args = { q: this.input.value };
             if (this.options.onsuggest != null)
-                this.options.onsuggest(args, this.form);
+                this.options.onsuggest(args, this.form, this);
             scil.Utils.jsonp(this.url, function (ret) { me.list(ret.items == null ? ret : ret.items, sugid); }, args);
         }
     },
@@ -23242,6 +24858,8 @@ scil.AutoComplete = scil.extend(scilligence._base, {
 
         if (this.options.onclickitem != null)
             this.options.onclickitem(s);
+
+        scil.Utils.fireEvent(this.input, "change", false, true);
     },
 
     clickout: function (e) {
@@ -23397,7 +25015,7 @@ scil.Table = scil.extend(scil._base, {
     * @constructor Table
     * @param {bool} viewonly
     * @param {bool} header
-    * @param {dictionary} options - { viewonly(bool), header(bool), selectrow (bool), rowcheck(bool), delrow(bool), addrow (bool), onAdd, onselectrow, onchange }
+    * @param {dictionary} options - { viewonly(bool), header(bool), selectrow (bool), rowcheck(bool), delrow(bool), addrow (bool), selectrow (bool), onAdd, onselectrow, onchange }
     */
     constructor: function (viewonly, header, options) {
         if (viewonly != null && typeof (viewonly) == "object") {
@@ -23428,6 +25046,8 @@ scil.Table = scil.extend(scil._base, {
         this.tbody = null;
         this.items = null;
         this.key = null;
+
+        this._lastcheck = null;
     },
 
     /**
@@ -23514,7 +25134,7 @@ scil.Table = scil.extend(scil._base, {
         this.setData(data);
     },
 
-    getCsv: function() {
+    getCsv: function () {
         var s = "";
         var i = 0;
         for (var k in this.items) {
@@ -24067,7 +25687,7 @@ scil.Table = scil.extend(scil._base, {
     /**
     * Set cell value
     * @function setCellValue2
-    * @param {string} rowkey the key of the row, or row index, or TR
+    * @param {string/number/DOM} rowkey the key of the row, or row index, or TR
     * @param {string} colkey the key of the column
     * @param {object} value
     * @returns true or false
@@ -24084,8 +25704,9 @@ scil.Table = scil.extend(scil._base, {
             tr = rowkey
         }
         else {
+            var list = this.tbody.childNodes;
             for (var i = this._startrow; i < list.length; ++i) {
-                if (list[i].getAttribute("key") == key) {
+                if (list[i].getAttribute("key") == rowkey) {
                     tr = list[i];
                     break;
                 }
@@ -24107,12 +25728,12 @@ scil.Table = scil.extend(scil._base, {
     },
 
     /**
-   * Get cell value
-   * @function getCellValue2
-   * @param {string} rowkey the key of the row, or row index
-   * @param {string} colkey the key of the column
-   * @returns the cell value
-   */
+    * Get cell value
+    * @function getCellValue2
+    * @param {string/number} rowkey the key of the row, or row index
+    * @param {string} colkey the key of the column
+    * @returns the cell value
+    */
     getCellValue2: function (rowkey, colkey) {
         if (this.items[colkey] == null)
             return null;
@@ -24122,8 +25743,9 @@ scil.Table = scil.extend(scil._base, {
             tr = this.tbody.childNodes[this._startrow + rowkey];
         }
         else {
+            var list = this.tbody.childNodes;
             for (var i = this._startrow; i < list.length; ++i) {
-                if (list[i].getAttribute("key") == key) {
+                if (list[i].getAttribute("key") == rowkey) {
                     tr = list[i];
                     break;
                 }
@@ -24149,7 +25771,7 @@ scil.Table = scil.extend(scil._base, {
         if (tr == null || tr.getAttribute("sciltable") != "1")
             return;
 
-        if (f || tr == this.currow) 
+        if (f || tr == this.currow)
             tr.style.backgroundColor = JSDraw2.Skin.jssdf.rowcolor;
         else
             tr.style.backgroundColor = tr.getAttribute("bgcolor");
@@ -24207,7 +25829,7 @@ scil.Table = scil.extend(scil._base, {
 
         var me = this;
         var bgcolor = this.tbody.childNodes.length % 2 == 1 ? JSDraw2.Skin.jssdf.oddcolor : JSDraw2.Skin.jssdf.evencolor;
-        var r = scil.Utils.createElement(null, "tr", null, { backgroundColor: bgcolor }, { sciltable: "1" , bgcolor: bgcolor });
+        var r = scil.Utils.createElement(null, "tr", null, { backgroundColor: bgcolor }, { sciltable: "1", bgcolor: bgcolor });
         if (beforerow == null)
             this.tbody.appendChild(r);
         else
@@ -24234,10 +25856,14 @@ scil.Table = scil.extend(scil._base, {
         var td = scil.Utils.createElement(r, "td");
         if (this.options.rowcheck) {
             var name = this.options.rowcheck == "radio" ? "__scil_table_" + this._tableid + "_radio" : null;
-            var check = scil.Utils.createElement(td, this.options.rowcheck == "radio" ? "radio" : "checkbox", null, null, { name: name });
+            var checktype = this.options.rowcheck == "radio" ? "radio" : "checkbox";
+            var check = scil.Utils.createElement(td, checktype, null, null, { name: name });
             check.checked = values == null ? false : values.rowchecked;
             if (this.options.onrowcheck != null)
                 dojo.connect(check, "onchange", function () { me.options.onrowcheck(r, check.checked); });
+
+            if (checktype == "checkbox")
+                scil.connect(check, "onclick", function (e) { me.checkedClick(e); });
         }
         else {
             td.style.display = "none";
@@ -24257,8 +25883,10 @@ scil.Table = scil.extend(scil._base, {
             td.style.borderLeft = JSDraw2.Skin.jssdf.border;
             if (item.type == "hidden" || item.ishidden)
                 td.style.display = "none";
-            td.field = scil.Form.createField(td, item, this.viewonly || lockeditems != null && lockeditems[id], values == null ? item.value : values[id], values, true, true);
-            if (this.viewonly && item.type != "img") {
+
+            var viewonly = this.viewonly || item.viewonly || lockeditems != null && lockeditems[id];
+            td.field = scil.Form.createField(td, item, viewonly, values == null ? item.value : values[id], values, true, true);
+            if (viewonly && item.type != "img") {
                 td.field.style.width = "100%";
             }
             else {
@@ -24289,6 +25917,29 @@ scil.Table = scil.extend(scil._base, {
         }
 
         return r;
+    },
+
+    checkedClick: function (e) {
+        var check = e.srcElement || e.target;
+        if (!check.checked)
+            return;
+
+        if (e.shiftKey) {
+            var nodes = this.tbody.childNodes;
+            var start = scil.Utils.indexOf(nodes, scil.Utils.getParent(this._lastcheck, "TR"));
+            var end = scil.Utils.indexOf(nodes, scil.Utils.getParent(check, "TR"));
+            if (st != -1 && ed != -1) {
+                var st = Math.min(start, end);
+                var ed = Math.max(start, end);
+                for (var i = st; i <= ed; ++i) {
+                    if (nodes[i].style.display == "none")
+                        nodes[i].childNodes[this.checkIndex].firstChild.checked = false;
+                    else
+                        nodes[i].childNodes[this.checkIndex].firstChild.checked = true;
+                }
+            }
+        }
+        this._lastcheck = check;
     },
 
     _connectOnchange: function (field, item) {
@@ -24356,7 +26007,7 @@ scil.Table = scil.extend(scil._base, {
             };
 
             var me = this;
-            var fields = { table: { type: "table", columns: columns, options: { rowcheck: true, viewonly: true } } };
+            var fields = { table: { type: "table", columns: columns, options: { rowcheck: true, viewonly: true}} };
             this.showhideDlg = scil.Form.createDlgForm("Show/Hide Columns", fields, { label: "OK", onclick: function () { me.showHideColumns2(); } }, { hidelabel: true });
         }
 
@@ -24368,6 +26019,7 @@ scil.Table = scil.extend(scil._base, {
                 rows.push({ caption: this.items[k].label, key: k, rowchecked: !this.items[k].ishidden });
         }
         this.showhideDlg.form.setData({ table: rows });
+        this.showhideDlg.moveCenter();
     },
 
     showHideColumns2: function () {
@@ -24636,6 +26288,9 @@ scil.Tree = scil.extend(scil._base, {
             this.expand(parent, true);
         if (item.expand == false)
             this.expand(n, false);
+
+        if (item.selected)
+            this.select(n);
         return n;
     },
 
@@ -24674,6 +26329,9 @@ scil.Tree = scil.extend(scil._base, {
 
         var f = null;
         var n = bar.parentNode;
+        if (n != null && n.item != null && n.item.leaf)
+            return;
+
         if (this.options.url == null || n.getAttribute("loaded") == "1" || bar.nextSibling != null) {
             f = bar.nextSibling == null || bar.nextSibling.style.display == "none";
             this.expand(n, f);
@@ -24727,9 +26385,9 @@ scil.Tree = scil.extend(scil._base, {
 
     select: function (node) {
         if (typeof node == "string")
-            node = this.find(node, null);
+            node = this.find(null, node);
 
-        if (node.item != null && node.item.selectable == false)
+        if (node == null || node.item != null && node.item.selectable == false)
             return;
 
         if (node.item != null && node.item._more) {
@@ -24764,6 +26422,8 @@ scil.Tree = scil.extend(scil._base, {
         var n = this.find(null, value, key);
         if (n != null)
             this.select(n);
+
+        return n;
     },
 
     find: function (parent, value, key) {
@@ -24889,6 +26549,15 @@ scil.DropdownInput = scil.extend(scilligence._base, {
         else if (scil.Utils.startswith(this.options.autosuggest, "data:")) {
             // local data
             var ret = this.filterlist(this.options.autosuggest.substr(5).split(','), this.input.value);
+            this.list(ret, sugid);
+            this.itemschanged = true;
+        }
+        else if (scil.Utils.startswith(this.options.autosuggest, "javascript:")) {
+            var s = this.options.autosuggest.substr(11);
+            var fn = scil.Utils.eval(s);
+            var items = fn(this);
+
+            var ret = this.filterlist(items, this.input.value);
             this.list(ret, sugid);
             this.itemschanged = true;
         }
@@ -25076,8 +26745,10 @@ scil.DropdownInput = scil.extend(scilligence._base, {
 
     list: function (items, sugid) {
         if (items == null || items.length == 0 || sugid != this.sugid || this.isParentHidden(this.input)) {
-            if (this.auto != null)
+            if (this.auto != null) {
+                scilligence.Utils.removeAll(this.auto);
                 this.auto.style.display = "none";
+            }
             return;
         }
         if (this.auto == null || this.auto.style.display == "none") {
@@ -25152,6 +26823,8 @@ scil.DropdownInput = scil.extend(scilligence._base, {
 
         if (this.options.onclickitem != null)
             this.options.onclickitem(s);
+
+        scil.Utils.fireEvent(this.input, "change", false, true);
     },
 
     changeUnit: function (s, unit) {
@@ -25375,7 +27048,7 @@ scil.apply(scil.Popup, {
         this.div.style.borderColor = "#f0f0f0 #a0a0a0 #a0a0a0 #f0f0f0";
         this.div.style.borderWidth = "2px";
         this.div.style.position = "absolute";
-        this.div.style.zIndex = "99999";
+        this.div.style.zIndex = scil.Utils.getMaxZindex();
         this.div.style.textAlign = "left";
         document.body.appendChild(this.div);
 
@@ -25386,8 +27059,8 @@ scil.apply(scil.Popup, {
 
         this.title = document.createElement("div");
         this.title.style.textAlign = "center";
-        this.title.style.border = "1px solid blue";
-        this.title.style.backgroundColor = "blue";
+        this.title.style.border = JSDraw2.Skin.dialog.border;
+        this.title.style.backgroundColor = JSDraw2.Skin.dialog.bkcolor;
         this.title.style.color = "white";
         div.appendChild(this.title);
 
@@ -25490,6 +27163,27 @@ scil.UploadFile = {
 /**
 * Tabs class - Tabs Control
 * @class scilligence.Tabs
+* <pre>
+* <b>Example:</b>
+        &lt;div id="div1"&gt;&lt;/div&gt;
+        &lt;script type="text/javascript"&gt;
+            scil.ready(function () {
+                var options = {
+                    tabs: {
+                        a: { caption: "Tab A" },
+                        b: { caption: "Tab B", closable: true }
+                    },
+                    onRemoveTab: function (td, tabs) { alert("remove tab"); },
+                    onBeforeShowTab: function (td, old, tabs) { },
+                    onShowTab: function (td, old, tabs) { },
+                    onCreateTab: function(td, clientarea, tabs) { },
+                    border: true
+                };
+
+                var tabs = new scil.Tabs("div1", options);
+            });
+        &lt;/script&gt;
+* </pre>
 */
 scil.Tabs = scil.extend(scil._base, {
     constructor: function (parent, options) {
@@ -25498,7 +27192,7 @@ scil.Tabs = scil.extend(scil._base, {
         this.currenttab = null;
         this.area = null;
 
-        if (typeof(parent) == "string")
+        if (typeof (parent) == "string")
             parent = dojo.byId(parent);
 
         var tabarea;
@@ -25526,7 +27220,7 @@ scil.Tabs = scil.extend(scil._base, {
                 this.area = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { padding: areapadding, border: areaborder });
                 tabarea = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { borderTop: tabborder, borderTopWidth: taggap });
                 break;
-            default:// top
+            default: // top
                 tabarea = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { borderBottom: tabborder, borderBottomWidth: taggap });
                 this.area = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, { padding: areapadding, border: areaborder });
                 break;
@@ -25534,14 +27228,21 @@ scil.Tabs = scil.extend(scil._base, {
 
         this.tabcontainer = scil.Utils.createTable(tabarea, 0, 0);
         if (this.vertical)
-            this.tr = scil.Utils.createElement(this.tabcontainer, "tr"); 
+            this.tr = scil.Utils.createElement(this.tabcontainer, "tr");
 
         if (this.options.showtabs == false)
             this.tr.style.display = "none";
 
-        if (this.options.tabs != null) {
-            for (var i = 0; i < this.options.tabs.length; ++i)
-                this.addTab(this.options.tabs[i]);
+        var tabs = this.options.tabs;
+        if (tabs != null) {
+            if (tabs.length > 0) {
+                for (var i = 0; i < tabs.length; ++i)
+                    this.addTab(tabs[i]);
+            }
+            else {
+                for (var k in tabs)
+                    this.addTab(tabs[k], k);
+            }
         }
     },
 
@@ -25571,7 +27272,7 @@ scil.Tabs = scil.extend(scil._base, {
             this.options.onresizeclientarea(width, height, this);
     },
 
-    addTab: function (options) {
+    addTab: function (options, key) {
         if (this.vertical) {
             if (this.tr.childNodes.length > 0)
                 scil.Utils.createElement(this.tr, "td", "&nbsp;");
@@ -25587,6 +27288,7 @@ scil.Tabs = scil.extend(scil._base, {
         var padding = this.options.tabpadding == null ? "5px 10px 1px 10px" : this.options.tabpadding;
         var tr = this.vertical ? this.tr : scil.Utils.createElement(this.tabcontainer, "tr");
         var style = { border: "solid 1px #ddd", padding: padding, backgroundColor: "#eee" };
+
         switch (this.options.tablocation) {
             case "left":
                 style.borderRight = "none";
@@ -25603,16 +27305,40 @@ scil.Tabs = scil.extend(scil._base, {
                 style.borderBottomLeftRadius = "5px";
                 style.borderBottomRightRadius = "5px";
                 break;
-            default:// top
+            default: // top
                 style.borderBottom = "none";
                 style.borderTopLeftRadius = "5px";
                 style.borderTopRightRadius = "5px";
                 break;
         }
-        var td = scil.Utils.createElement(tr, "td", (icon != null ? "<img src='" + icon + "'>" : "") + (caption == null ? "Tab" : scil.Lang.res(caption)),
-            style, { key: options.tabkey }, function (e) {
-                me.showTab(e.srcElement || e.target);
-            });
+
+        var td = scil.Utils.createElement(tr, "td", null, style, { key: key || options.tabkey, sciltab: "1" });
+        var tbody2 = scil.Utils.createTable2(td, null, { cellSpacing: 0, cellPadding: 0 });
+        var s = (icon != null ? "<img src='" + icon + "'>" : "") + (caption == null ? "Tab" : scil.Lang.res(caption));
+
+        var td2 = null;
+        switch (this.options.tablocation) {
+            case "left":
+            case "right":
+                td._label = scil.Utils.createElement(scil.Utils.createElement(tbody2, "tr"), "td", s, null, null, function (e) { me.showTab(td); });
+                td2 = scil.Utils.createElement(scil.Utils.createElement(tbody2, "tr"), "td");
+                break;
+            case "bottom":
+            default: // top
+                var tr2 = scil.Utils.createElement(tbody2, "tr");
+                td._label = scil.Utils.createElement(tr2, "td", s, null, null, function (e) { me.showTab(td); });
+                td2 = scil.Utils.createElement(tr2, "td");
+                break;
+        }
+
+        if (options.closable) {
+            var img = scil.Utils.createButton(td2, { src: scil.Utils.imgSrc("img/del2.gif"), title: "Close", style: {}, onclick: function (e) { me.closeTab(td); } });
+            img.style.marginLeft = "10px";
+            td.style.paddingRight = "2px";
+
+            scil.connect(td2, "onmouseover", function () { img.style.background = "#fff"; });
+            scil.connect(td2, "onmouseout", function () { img.style.background = ""; });
+        }
 
         if (options.onmenu != null) {
             scil.connect(td, "onmouseup",
@@ -25639,14 +27365,28 @@ scil.Tabs = scil.extend(scil._base, {
         if (options.html != null)
             td.clientarea.innerHTML = options.html;
 
+        if (this.options.onCreateTab != null)
+            this.options.onCreateTab(td, td.clientarea, this);
+
         return td;
     },
 
-    currentTabKey: function() {
+    updateTabLabel: function (key, s) {
+        var td = typeof (key) == "string" ? this.findTab(key) : key;
+        if (td != null && td._label != null)
+            td._label.innerHTML = s;
+    },
+
+    closeTab: function (td) {
+        var me = this;
+        scil.Utils.confirmYes("Close this tab?", function () { me.removeTab(td); });
+    },
+
+    currentTabKey: function () {
         return this.currenttab == null ? null : this.currenttab.getAttribute("key");
     },
 
-    findTab: function(key) {
+    findTab: function (key) {
         var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
         for (var i = 0; i < list.length; ++i) {
             var td;
@@ -25661,17 +27401,57 @@ scil.Tabs = scil.extend(scil._base, {
         return null;
     },
 
-    removeTab: function(key) {
-        var td = this.findTab(key);
+    removeTab: function (key) {
+        var td = typeof (key) == "string" ? this.findTab(key) : key;
         if (td == null)
             return null;
 
+        if (this.options.onRemoveTab != null)
+            this.options.onRemoveTab(td, this);
+
+        var list = this.allTabsAsArray();
+        var i = scil.Utils.indexOf(list, td);
+
+        if (i > 0)
+            this.showTab(list[i - 1]);
+        else
+            this.showTab(list[i + 1]);
+
         td.clientarea.parentNode.removeChild(td.clientarea);
         delete td.clientarea;
-        td.parentNode.removeChild(td);
+
+        if (this.vertical) {
+            var td0 = td.previousSibling;
+            if (td0 != null && td0.clientarea == null)
+                td0.parentNode.removeChild(td0);
+            td.parentNode.removeChild(td);
+        }
+        else {
+            var tr = td.parentNode;
+            var tr0 = tr.previousSibling;
+            if (tr0 != null)
+                tr0.parentNode.removeChild(tr0);
+            tr.parentNode.removeChild(tr);
+        }
     },
 
-    allTabs: function() {
+    allTabsAsArray: function () {
+        var ret = [];
+        var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
+        for (var i = 0; i < list.length; ++i) {
+            var td;
+            if (this.vertical)
+                td = list[i];
+            else
+                td = list[i].childNodes[0];
+
+            if (td.getAttribute("sciltab") == "1")
+                ret.push(td);
+        }
+        return ret;
+    },
+
+    allTabs: function () {
         var ret = {};
         var list = this.vertical ? this.tr.childNodes : this.tabcontainer.childNodes;
         for (var i = 0; i < list.length; ++i) {
@@ -25681,9 +27461,11 @@ scil.Tabs = scil.extend(scil._base, {
             else
                 td = list[i].childNodes[0];
 
-            var k = td.getAttribute("key");
-            if (k != null && k != "")
-                ret[k] = td;
+            if (td.getAttribute("sciltab") == "1") {
+                var k = td.getAttribute("key");
+                if (k != null && k != "")
+                    ret[k] = td;
+            }
         }
         return ret;
     },
@@ -25693,8 +27475,7 @@ scil.Tabs = scil.extend(scil._base, {
             td = this.findTab(td);
         }
         else if (typeof (td) == "number") {
-            var dict = this.allTabs();
-            var list = scil.Utils.getDictValues(dict);
+            var list = this.allTabsAsArray();
             td = list[td];
         }
 
@@ -25715,15 +27496,16 @@ scil.Tabs = scil.extend(scil._base, {
             this.currenttab.style.color = "";
         }
 
-        if (old != null)
+        if (old != null && old.clientarea != null)
             old.clientarea.style.display = "none";
 
         td.style.backgroundColor = scil.Tabs.kHighlightColor;
         td.style.color = "#fff";
         this.currenttab = td;
-        td.clientarea.style.display = "";
+        if (td.clientarea != null)
+            td.clientarea.style.display = "";
 
-        if (this.options.onShowTab != null) 
+        if (this.options.onShowTab != null)
             this.options.onShowTab(td, old, this);
     },
 
@@ -25740,25 +27522,36 @@ scil.Tabs = scil.extend(scil._base, {
 scil.apply(scil.Tabs, {
     kHighlightColor: "#88f",
     kBorderStyle: "solid 1px #88f"
-});﻿//////////////////////////////////////////////////////////////////////////////////
+});﻿﻿//////////////////////////////////////////////////////////////////////////////////
 //
-// JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Scilligence JSDraw
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
-//
-// (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
 //
 //////////////////////////////////////////////////////////////////////////////////
 
 /**
 * TabbedForm class - TabbedForm Control
 * @class scilligence.TabbedForm
+* <pre>
+* <b>Example:</b>
+*    dojo.ready(function () {
+*        var parent = scil.Utils.createElement(document.body, "div");
+*            var options = { tabs: {
+*                a: { caption: "Tab A", fields: { field1: { label: "Field1"}} },
+*                b: { caption: "Tab B", fields: { field2: { label: "Field2" }, field3: { label: "Field3"}} }
+*            }, buttons: { label: "Test", onclick: function() { alert(999); } }, border: true
+*            };
+*        var form = new scil.TabbedForm(options).render(parent);
+*    });
+* </pre>
 */
 scil.TabbedForm = scil.extend(scil._base, {
     constructor: function (options) {
         this.form = null;
         this.options = options;
         this.buttons = [];
+        this.fields = {};
     },
 
     render: function(parent) {
@@ -25777,10 +27570,13 @@ scil.TabbedForm = scil.extend(scil._base, {
         };
 
         var first = true;
+        for (var k in this.options.tabs)
+            this.options.tabs[k].tabkey = k;
+
         this.tabs = new scil.Tabs(parent, this.options);
         for (var k in this.options.tabs) {
             this.options.tabs[k].tabkey = k;
-            var td = this.tabs.addTab(this.options.tabs[k]);
+            var td = this.tabs.findTab(k);
             td.form = new scil.Form(this.options);
 
             if (!this.options.delayrender || first) {
@@ -25804,16 +27600,64 @@ scil.TabbedForm = scil.extend(scil._base, {
         return this;
     },
 
+    /**
+    * Set a field value
+    * @function setFieldValue
+    * @param {string} id - the id of the field
+    * @param {string} v - value to be set
+    */
+    setFieldValue: function (id, v, data) {
+        var field = this.fields[id];
+        scil.Form.setFieldData(this.fields[id], this.items[id], this.viewonly, v, data);
+    },
+
+    focus: function (key) {
+        scil.Form.focus(this.fields, key);
+    },
+
+    /**
+    * Check required fields
+    * @function checkRequiredFields
+    */
+    checkRequiredFields: function () {
+        var n = 0;
+        var tabs = this.tabs.allTabs();
+        for (var k in tabs) {
+            var form = tabs[k].form;
+            if (form != null)
+                n += form.checkRequiredFields();
+        }
+        return n;
+    },
+
+    /**
+    * Reset required fields
+    * @function resetRequiredFields
+    */
+    resetRequiredFields: function () {
+        var tabs = this.tabs.allTabs();
+        for (var k in tabs) {
+            var form = tabs[k].form;
+            if (form != null)
+                form.resetRequiredFields();
+        }
+    },
+
     renderTabForm: function(td) {
         if (td.rendered)
             return;
 
         var k = td.getAttribute("key");
+        var fields = null;
+        if (this.options.tabs!= null && this.options.tabs[k] != null)
+            fields = this.options.tabs[k].fields;
+
         var display = td.clientarea.style.display;
         td.clientarea.style.display = "";
-        td.form.render(td.clientarea, this.options.tabs[k].fields, this.options.tabs[k]);
+        td.form.render(td.clientarea, fields, this.options.tabs[k]);
         td.clientarea.style.display = display;
 
+        scil.apply(this.fields, td.form.fields);
         td.rendered = true;
     },
 
@@ -25944,9 +27788,9 @@ scil.FieldNumber = scil.extend(scil._base, {
         var me = this;
         scil.connect(input, "onchange", function (e) {
             var s = input.value;
-            if (s != "" && s != null && !scil.Utils.isNumber(s, me.options.allowoperator)) {
-                scil.Utils.alert("A number is required!");
+            if (s != "" && s != null && (me.options.accepts == null || !new RegExp(me.options.accepts).test(s)) && !scil.Utils.isNumber(s, me.options.allowoperator)) {
                 input.value = "";
+                scil.Utils.alert("A number is required!");
             }
             else {
                 if (me.unit != null)
@@ -25957,7 +27801,12 @@ scil.FieldNumber = scil.extend(scil._base, {
 
         if (!viewonly && this.options.mobiledata != null) {
             var me = this;
-            new scil.MobileData(input, { category: this.options.mobiledata, weighstation: true, url: scil.MobileData.getDefaultUrl(true), onresult: function (ret) { me.setValue(ret.barcode); return true; } });
+            new scil.MobileData(input, { weighstation: true, url: scil.MobileData.getDefaultUrl(true), onresult: function (ret) {
+                me.setValue(ret.barcode);
+                scil.MobileData.markRecieved(input);
+                return true;
+            } 
+            });
             scil.Utils.createButton(scil.Utils.createElement(tr, "td"), { label: "&#9878;", title: "Select Weigh Station", type: "a", onclick: function () { scil.MobileData.selectWeighstation(); } });
         }
     },
@@ -26585,19 +28434,20 @@ scil.DnD = scil.extend(scil._base, {
         this.src = null;
         this.copy = null;
         this.dragging = false;
+        this.disabled = false;
 
         this.options = options;
         if (typeof (parent) == "string")
             parent = scil.byId(parent);
 
         var me = this;
-        dojo.connect(parent, "onmousedown", function (e) { me.mousedown(e); });
+        dojo.connect(parent, "onmousedown", function (e) { if (!me.disabled) me.mousedown(e); });
 
-        dojo.connect(document.body, "onmousemove", function (e) { me.mousemove(e); });
-        dojo.connect(document.body, "onmouseup", function (e) { me.mouseup(e); });
+        dojo.connect(document.body, "onmousemove", function (e) { if (!me.disabled) me.mousemove(e); });
+        dojo.connect(document.body, "onmouseup", function (e) { if (!me.disabled) me.mouseup(e); });
     },
 
-    isDragging: function() {
+    isDragging: function () {
         return this.dragging;
     },
 
@@ -26613,26 +28463,31 @@ scil.DnD = scil.extend(scil._base, {
     },
 
     mousedown: function (e, src) {
-        if (this.options.onstartdrag != null)
+        if (this.options.onstartdrag != null) {
             this.src = this.options.onstartdrag(e, this);
+            this.startpos = { x: e.clientX, y: e.clientY };
+        }
     },
 
     mousemove: function (e) {
         if (this.src == null)
             return;
 
-        if (this.copy == null) {
+        if (this.copy == null && (Math.abs(e.clientX - this.startpos.x) > 10 || Math.abs(e.clientY - this.startpos.y) > 10)) {
             if (this.options.oncreatecopy != null)
                 this.copy = this.options.oncreatecopy(e, this);
         }
 
         if (this.copy != null) {
             var scroll = scil.Utils.scrollOffset();
-            this.copy.style.left = (e.clientX + scroll.x) + "px";
-            this.copy.style.top = (e.clientY + scroll.y) + "px";
+            this.copy.style.left = (e.clientX + scroll.x + 2) + "px";
+            this.copy.style.top = (e.clientY + scroll.y + 2) + "px";
 
             this.dragging = true;
         }
+
+        if (this.options.ondragover != null)
+            this.options.ondragover(e, this);
     },
 
     mouseup: function (e) {
@@ -26840,6 +28695,9 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
     },
 
     show: function () {
+        if (this.options.onshowdropdown != null)
+            this.options.onshowdropdown(this);
+
         if (this.auto == null) {
             var me = this;
             var w = this.options.width;
@@ -26904,8 +28762,12 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
 
         scil.Utils.removeAll(this.area);
         var me = this;
-        for (var i = 0; i < items.length; ++i)
-            this.createItem(items[i]);
+        for (var i = 0; i < items.length; ++i) {
+            var item = items[i];
+            if (item == "-" && (i == 0 || items[i - 1] == "-" || i == items.length - 1))
+                continue;
+            this.createItem(item);
+        }
     },
 
     createItem: function (item) {
@@ -26914,13 +28776,14 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
             return;
         }
 
+        if (typeof (item) == "string")
+            item = { label: item };
+
         var label = this.options.translate ? scil.Lang.res(item.label) : item.label;
         if (item.key == null && label != item.label)
             item.key = item.label;
 
         var div = scil.Utils.createElement(this.area, 'div', null, { padding: "3px 10px 3px 10px", color: JSDraw2.Skin.menu.color, cursor: "pointer" }, { url: item.url, key: item.key });
-        if (typeof (item) == "string")
-            item = { label: item };
 
         var div2 = div;
         if (item.items != null && item.items.length > 0) {
@@ -26932,8 +28795,8 @@ scilligence.DropdownButton = scilligence.extend(scilligence._base, {
 
         if (item.icon != null)
             scil.Utils.createElement(div2, "img", null, { marginRight: "5px" }, { src: item.icon });
-        if (item.label != null)
-            scil.Utils.createElement(div2, "span", item.label);
+        if (label != null)
+            scil.Utils.createElement(div2, "span", label);
 
         var me = this;
         if (item.items != null && item.items.length > 0) {
@@ -27008,7 +28871,7 @@ scil.App = {
 };﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27124,7 +28987,7 @@ scil.Page = scil.extend(scil._base, {
         return scil.Page.addForm(this, options, listento, parent, leftside);
     },
 
-    addResizeHandle: function(onresize, height) {
+    addResizeHandle: function (onresize, height) {
         var div = this.addDiv();
         div.style.height = (height > 0 ? height : scil.Page.kHandleWidth) + "px";
         div.style.marginBottom = "2px";
@@ -27188,7 +29051,7 @@ scil.apply(scil.Page, {
 });﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27272,7 +29135,7 @@ scil.Page.Custom = scil.extend(scil._base, {
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -27335,7 +29198,7 @@ scil.Page.Explorer = scil.extend(scil._base, {
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -27363,6 +29226,7 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
         this.toolbar = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, scil.Page.ExplorerForm.kToolbarStyle);
         if (options.toolbarvisible == false)
             this.toolbar.style.display = "none";
+        this.toolbar.style.whiteSpace = "nowrap"; //I#11762
 
         this.main = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, scil.Page.ExplorerForm.kAreaStyle);
         this.div = scil.Utils.createElement(this.main, "div");
@@ -27405,7 +29269,7 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
         this.root.style.display = "none";
     },
 
-    collapse: function() {
+    collapse: function () {
         this.expand(false);
     },
 
@@ -27429,13 +29293,13 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
 
 
 scil.apply(scil.Page.ExplorerForm, {
-    kHeaderStyle: { background: "#88f", padding: "3px 10px 3px 16px", whiteSpace: "nowrap", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" },
+    kHeaderStyle: { background: "#88f", color: "white", padding: "3px 10px 3px 16px", whiteSpace: "nowrap", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" },
     kToolbarStyle: { background: "#f5f5f5", border: "solid 1px #f5f5f5", padding: "0 5px 0 5px" },
     kAreaStyle: { border: "solid 1px #f5f5f5", padding: "5px" }
 });﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27520,7 +29384,7 @@ scil.Page.Form = scil.extend(scil._base, {
 ﻿﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27583,7 +29447,7 @@ scil.Page.Tab = scil.extend(scil._base, {
 });﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27613,6 +29477,12 @@ scil.Page.Table = scil.extend(scil._base, {
         }
         if (this.options.buttons != null)
             buttons = buttons.concat(this.options.buttons);
+
+        if (this.options.columnhidable) {
+            buttons.push("-");
+            buttons.push({ src: scil.App.imgSmall("columns.png"), title: "Show/Hide Columns", onclick: function () { me.table.showHideColumns(); } });
+        }
+
         this.form = new scil.Page.ExplorerForm(parent, { expandable: options.expandable, caption: options.caption, visible: options.visible, marginBottom: options.marginBottom, buttons: buttons, expanded: this.options.expanded, onexpand: this.options.onexpand });
         this.form.host = this;
         this.pages = scil.Utils.createElement(this.form.div, "div");
@@ -27671,21 +29541,25 @@ scil.Page.Table = scil.extend(scil._base, {
     loadPage: function (page) {
         if (this.args == null)
             this.args = {};
-        this.args.page = page;
         if (this.options.onloadpage != null)
             this.options.onloadpage(this.args, page, this);
-        this.refresh();
+        this.refresh(null, null, null, page);
     },
 
     list: function (ret) {
         var me = this;
+        if (ret == null)
+            ret = {};
         this.table.setData(ret.rows == null ? ret : ret.rows);
         scil.Table.listPages(this.pages, ret.page, ret.pages, function (page) { me.loadPage(page); });
     },
 
-    refresh: function (from, args, selectfirstrow) {
+    refresh: function (from, args, selectfirstrow, page) {
         if (args != null)
             this.args = args;
+        if (this.args == null)
+            this.args = {};
+        this.args.page = page;
 
         if (!this.form.isVisible() || !this.form.isExpanded()) {
             this.refreshneeded = true;
@@ -27702,7 +29576,8 @@ scil.Page.Table = scil.extend(scil._base, {
         if (me.options.onbeforerefresh != null)
             me.options.onbeforerefresh(params);
 
-        scil.Utils.ajax(this.page.url + this.options.object + ".list", function (ret) {
+        var fun = this.options.jsonp ? scil.Utils.jsonp : scil.Utils.ajax;
+        fun(this.page.url + this.options.object + ".list", function (ret) {
             if (me.options.onbeforelisting != null)
                 me.options.onbeforelisting(ret, me);
 
@@ -27726,6 +29601,11 @@ scil.Page.Table = scil.extend(scil._base, {
     add: function (values) {
         if (this.options.onAddNew != null && this.options.onAddNew(this.args) == false)
             return;
+
+        this.add2(values);
+    },
+
+    add2: function (values) {
         this.create();
         this.dlg.show();
         if (this.options.usetabs)
@@ -27741,6 +29621,24 @@ scil.Page.Table = scil.extend(scil._base, {
             this.options.onloaddata(data, this.args, this.dlg);
         this.dlg.form.setData(data);
         this.dlg.editkey = null;
+
+        this.showDelButton(false);
+    },
+
+    copyNew: function (key) {
+        if (key == null) {
+            for (var k in this.options.fields) {
+                if (this.options.fields[k].iskey) {
+                    key = k;
+                    break;
+                }
+            }
+        }
+        if (key == null)
+            return;
+
+        var me = this;
+        this.edit(function (ret) { ret[key] = " "; me.dlg.editkey = null; });
     },
 
     edit: function (onsetdata) {
@@ -27749,7 +29647,8 @@ scil.Page.Table = scil.extend(scil._base, {
             return;
         }
 
-        this.add();
+        this.add2();
+        this.showDelButton(true);
 
         var me = this;
         var data = {};
@@ -27782,7 +29681,17 @@ scil.Page.Table = scil.extend(scil._base, {
             scil.apply(data, this.args);
     },
 
+    cancel: function () {
+        if (this.dlg != null)
+            this.dlg.hide();
+    },
+
     save: function () {
+        if (this.dlg.form.checkRequiredFields() > 0) {
+            scil.Utils.alert("Some required field(s) are blank");
+            return;
+        }
+
         var me = this;
         var data = this.dlg.form.getData();
         if (this.options.savedoc)
@@ -27805,6 +29714,9 @@ scil.Page.Table = scil.extend(scil._base, {
             else {
                 me.refresh();
             }
+
+            if (me.options.onaftersave)
+                me.options.onaftersave(ret, me);
         }, data, { showprogress: true });
     },
 
@@ -27819,14 +29731,29 @@ scil.Page.Table = scil.extend(scil._base, {
         });
     },
 
+    showDelButton: function (f) {
+        if (this.dlg == null)
+            return;
+
+        for (var i = 0; i < this.dlg.form.buttons.length; ++i) {
+            var b = this.dlg.form.buttons[i];
+            if (b != null && b.getAttribute("key") == "delete") {
+                b.style.display = f ? "" : "none";
+                break;
+            }
+        }
+    },
+
     create: function () {
         if (this.dlg != null)
             return;
 
         var me = this;
-        var buttons = [{ src: scil.App.imgSmall("submit.png"), label: "Save", onclick: function () { me.save(); } }];
+        var buttons = [{ src: scil.App.imgSmall("submit.png"), label: "Save", key: "save", onclick: function () { me.save(); } }];
         if (this.options.candelete != false)
-            buttons.push({ src: scil.App.imgSmall("del.png"), label: "Delete", onclick: function () { me.del(); } });
+            buttons.push({ src: scil.App.imgSmall("del.png"), label: "Delete", key: "delete", onclick: function () { me.del(); } });
+        buttons.push({ src: scil.App.imgSmall("cancel.png"), label: "Cancel", key: "cancel", onclick: function () { me.cancel(); } });
+
         if (this.options.usetabs) {
             this.dlg = scil.Form.createTabDlgForm(this.options.formcaption, { tabs: this.options.fields, buttons: buttons, border: true, onchange: this.options.onformdatachange });
         }
@@ -27839,7 +29766,7 @@ scil.Page.Table = scil.extend(scil._base, {
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // Scilligence JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // Version 1.0.0.2013-11-06
 // http://www.scilligence.com/
 //
@@ -27848,6 +29775,18 @@ scil.Page.Table = scil.extend(scil._base, {
 /**
 * Page.Tree class - Page.Tree Control
 * @class scilligence.Page.Tree
+* <pre>
+* <b>Example:</b>
+*    &lt;div id='parent'&gt;&lt;/div&gt;
+*    &lt;script type="text/javascript"&gt;
+*        scil.ready(function () {
+*            var root = { name: "Root", icon: "", expanded: true, children: [{ name: "Child", icon: "", leaf: true }, { name: "Child 2", icon: "", leaf: false } ] };
+*            var tree = new scil.Tree(scil.byId("parent"));
+*            tree.clear();
+*            tree.add(null, root);
+*        });
+*    &lt;/script&gt;
+* </pre>
 */
 scil.Page.Tree = scil.extend(scil._base, {
     constructor: function (page, options, parent) {
@@ -27877,8 +29816,10 @@ scil.Page.Tree = scil.extend(scil._base, {
         else {
             this.tree = new scil.Tree(this.form.div, args);
             this.tree.onSelectItem = function (item) { me.select(item); };
-            this.tree.onExpandItem = function (node, f) { if (me.options.onexpand != null) me.options.onexpand(node, f); };
-            this.refresh();
+            this.tree.onExpandItem = function (node, f) { if (me.options.onexpand != null) return me.options.onexpand(node, f); };
+
+            if (this.options.startrefresh != false)
+                this.refresh();
         }
 
         this.form.main.style.padding = 0;

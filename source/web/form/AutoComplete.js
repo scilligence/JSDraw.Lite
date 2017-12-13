@@ -50,7 +50,7 @@ scil.AutoComplete = scil.extend(scilligence._base, {
         scil.AutoComplete._all.push(this);
     },
 
-    validateList: function() {
+    validateList: function () {
         var s = this.input.value;
         if (this.items == null || scil.Utils.indexOf(this.items, s) < 0)
             this.input.value = "";
@@ -88,12 +88,20 @@ scil.AutoComplete = scil.extend(scilligence._base, {
             var ret = this.filterlist(this.url.substr(5).split(','), this.input.value);
             this.list(ret, sugid);
         }
+        else if (scil.Utils.startswith(this.url, "javascript:")) {
+            var s = this.url.substr(11);
+            var fn = scil.Utils.eval(s);
+            var items = fun(this);
+
+            var ret = this.filterlist(items, this.input.value);
+            this.list(ret, sugid);
+        }
         else {
             // url to ajax call
             var me = this;
             var args = { q: this.input.value };
             if (this.options.onsuggest != null)
-                this.options.onsuggest(args, this.form);
+                this.options.onsuggest(args, this.form, this);
             scil.Utils.jsonp(this.url, function (ret) { me.list(ret.items == null ? ret : ret.items, sugid); }, args);
         }
     },
@@ -255,6 +263,8 @@ scil.AutoComplete = scil.extend(scilligence._base, {
 
         if (this.options.onclickitem != null)
             this.options.onclickitem(s);
+
+        scil.Utils.fireEvent(this.input, "change", false, true);
     },
 
     clickout: function (e) {

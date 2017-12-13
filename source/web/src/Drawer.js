@@ -9,32 +9,44 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 JSDraw2.Drawer = {
-    kMinFontSize: 6,
+    kMinFontSize: 4,
 
     drawFormula: function (surface, p, reversed, s, color, fontsize) {
+        //I#11940
         if (reversed) {
-            //            var s2 = JSDraw2.SuperAtoms.reverseLabel(s);
-            //            s = "";
-            //            for (var i = 0; i < s2.length; ++i)
-            //                s = s2.substr(i, 1) + s;
-
-            var ss = this.splitFormula(s);
-            var s2 = "";
-            for (var i = 0; i < ss.length; ++i)
-                s2 = ss[i].str + (ss[i].num != null ? ss[i].num : "") + s2;
-            s = "";
-            for (var i = 0; i < s2.length; ++i)
-                s = s2.substr(i, 1) + s;
+            var c = s.charAt(0);
+            if (c >= '0' && c <= '9')
+                reversed = false;
         }
 
         var rect = new JSDraw2.Rect();
-        for (var i = 0; i < s.length; ++i) {
-            var c = s.charAt(i);
-            var r = this.drawWord(surface, rect, p, color, fontsize, s.substr(i, 1), reversed, c >= '0' && c <= '9');
+        var ss = this.splitFormula(s);
+        for (var i = 0; i < ss.length; ++i) {
+            if (reversed) {
+                if (ss[i].num != null) {
+                    var r = this.drawWord(surface, rect, p, color, fontsize, ss[i].num, reversed, true);
+                    if (rect.isEmpty())
+                        rect = r;
+                    else
+                        rect.union(r);
+                }
+            }
+
+            var r = this.drawWord(surface, rect, p, color, fontsize, ss[i].str, reversed, false);
             if (rect.isEmpty())
                 rect = r;
             else
                 rect.union(r);
+
+            if (!reversed) {
+                if (ss[i].num != null) {
+                    r = this.drawWord(surface, rect, p, color, fontsize, ss[i].num, reversed, true);
+                    if (rect.isEmpty())
+                        rect = r;
+                    else
+                        rect.union(r);
+                }
+            }
         }
 
         return rect;
@@ -54,21 +66,23 @@ JSDraw2.Drawer = {
         }
         else if (reversed) {
             dx = -(p.x - rect.left) - nw;
-            if (w == "I" || w == "i" || w == "l" || w == "r") {
-                dx -= fontsize / 5;
+            if (w == "I" || w == "i" || w == "l" || w == "r" || w == "f" || w == ".") {
+                dx -= fontsize / 6.0;
                 // r.width -= 4;
             }
+
             if (scil.Utils.isChrome)
-                dx -= fontsize / 9;
+                dx -= fontsize / 10.0;
         }
         else {
             dx = (rect.right() - p.x) + nw;
-            if (w == "I" || w == "i" || w == "l" || w == "r") {
-                dx += fontsize / 5;
+            if (w == "I" || w == "i" || w == "l" || w == "r" || w == "f" || w == ".") {
+                dx += fontsize / 6.0;
                 // r.width -= 4;
             }
+
             if (scil.Utils.isChrome)
-                dx += fontsize / 9;
+                dx += fontsize / 10.0;
         }
 
         n.setTransform([dojox.gfx.matrix.translate(dx, dy)]);
@@ -78,7 +92,7 @@ JSDraw2.Drawer = {
     },
 
     splitFormula: function (s) {
-        if (new RegExp("^[A-Z]+$").test(s) || new RegExp("^[\(][^\(\)]+[\)]$").test(s))
+        if (/^[A-Z]+$/.test(s) || /^[\(][^\(\)]+[\)]$/.test(s) || /^[\[][^\[\]]+[\]]$/.test(s))
             return [{ str: s}];
 
         var ret = [];
@@ -532,7 +546,7 @@ JSDraw2.Drawer = {
     drawHexgon: function (surface, r, color, linewidth) {
         var c = r.center();
         var d = new JSDraw2.Point(0, r.width / 2);
-        d.rotate(-30);        
+        d.rotate(-30);
         var points = [
             { x: r.right(), y: c.y },
             { x: c.x + d.x, y: c.y - d.y },

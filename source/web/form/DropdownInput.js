@@ -95,6 +95,15 @@ scil.DropdownInput = scil.extend(scilligence._base, {
             this.list(ret, sugid);
             this.itemschanged = true;
         }
+        else if (scil.Utils.startswith(this.options.autosuggest, "javascript:")) {
+            var s = this.options.autosuggest.substr(11);
+            var fn = scil.Utils.eval(s);
+            var items = fn(this);
+
+            var ret = this.filterlist(items, this.input.value);
+            this.list(ret, sugid);
+            this.itemschanged = true;
+        }
         else if (this.options.items != null && this.options.autosuggest == null) {
             // local data
             var ret = this.filterlist(this.options.items, this.input.value);
@@ -279,8 +288,10 @@ scil.DropdownInput = scil.extend(scilligence._base, {
 
     list: function (items, sugid) {
         if (items == null || items.length == 0 || sugid != this.sugid || this.isParentHidden(this.input)) {
-            if (this.auto != null)
+            if (this.auto != null) {
+                scilligence.Utils.removeAll(this.auto);
                 this.auto.style.display = "none";
+            }
             return;
         }
         if (this.auto == null || this.auto.style.display == "none") {
@@ -355,6 +366,8 @@ scil.DropdownInput = scil.extend(scilligence._base, {
 
         if (this.options.onclickitem != null)
             this.options.onclickitem(s);
+
+        scil.Utils.fireEvent(this.input, "change", false, true);
     },
 
     changeUnit: function (s, unit) {

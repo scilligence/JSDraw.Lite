@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,7 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
         this.toolbar = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, scil.Page.ExplorerForm.kToolbarStyle);
         if (options.toolbarvisible == false)
             this.toolbar.style.display = "none";
+        this.toolbar.style.whiteSpace = "nowrap"; //I#11762
 
         this.main = scil.Utils.createElement(scil.Utils.createElement(tbody, "tr"), "td", null, scil.Page.ExplorerForm.kAreaStyle);
         this.div = scil.Utils.createElement(this.main, "div");
@@ -71,7 +72,7 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
         this.root.style.display = "none";
     },
 
-    collapse: function() {
+    collapse: function () {
         this.expand(false);
     },
 
@@ -95,7 +96,7 @@ scil.Page.ExplorerForm = scil.extend(scil._base, {
 
 
 scil.apply(scil.Page.ExplorerForm, {
-    kHeaderStyle: { background: "#88f", padding: "3px 10px 3px 16px", whiteSpace: "nowrap", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" },
+    kHeaderStyle: { background: "#88f", color: "white", padding: "3px 10px 3px 16px", whiteSpace: "nowrap", borderTopLeftRadius: "5px", borderTopRightRadius: "5px" },
     kToolbarStyle: { background: "#f5f5f5", border: "solid 1px #f5f5f5", padding: "0 5px 0 5px" },
     kAreaStyle: { border: "solid 1px #f5f5f5", padding: "5px" }
 });

@@ -1,22 +1,33 @@
-﻿//////////////////////////////////////////////////////////////////////////////////
+﻿﻿//////////////////////////////////////////////////////////////////////////////////
 //
-// JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Scilligence JSDraw
+// Copyright (C) 2014 Scilligence Corporation
 // http://www.scilligence.com/
-//
-// (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
 //
 //////////////////////////////////////////////////////////////////////////////////
 
 /**
 * TabbedForm class - TabbedForm Control
 * @class scilligence.TabbedForm
+* <pre>
+* <b>Example:</b>
+*    dojo.ready(function () {
+*        var parent = scil.Utils.createElement(document.body, "div");
+*            var options = { tabs: {
+*                a: { caption: "Tab A", fields: { field1: { label: "Field1"}} },
+*                b: { caption: "Tab B", fields: { field2: { label: "Field2" }, field3: { label: "Field3"}} }
+*            }, buttons: { label: "Test", onclick: function() { alert(999); } }, border: true
+*            };
+*        var form = new scil.TabbedForm(options).render(parent);
+*    });
+* </pre>
 */
 scil.TabbedForm = scil.extend(scil._base, {
     constructor: function (options) {
         this.form = null;
         this.options = options;
         this.buttons = [];
+        this.fields = {};
     },
 
     render: function(parent) {
@@ -35,10 +46,13 @@ scil.TabbedForm = scil.extend(scil._base, {
         };
 
         var first = true;
+        for (var k in this.options.tabs)
+            this.options.tabs[k].tabkey = k;
+
         this.tabs = new scil.Tabs(parent, this.options);
         for (var k in this.options.tabs) {
             this.options.tabs[k].tabkey = k;
-            var td = this.tabs.addTab(this.options.tabs[k]);
+            var td = this.tabs.findTab(k);
             td.form = new scil.Form(this.options);
 
             if (!this.options.delayrender || first) {
@@ -62,16 +76,64 @@ scil.TabbedForm = scil.extend(scil._base, {
         return this;
     },
 
+    /**
+    * Set a field value
+    * @function setFieldValue
+    * @param {string} id - the id of the field
+    * @param {string} v - value to be set
+    */
+    setFieldValue: function (id, v, data) {
+        var field = this.fields[id];
+        scil.Form.setFieldData(this.fields[id], this.items[id], this.viewonly, v, data);
+    },
+
+    focus: function (key) {
+        scil.Form.focus(this.fields, key);
+    },
+
+    /**
+    * Check required fields
+    * @function checkRequiredFields
+    */
+    checkRequiredFields: function () {
+        var n = 0;
+        var tabs = this.tabs.allTabs();
+        for (var k in tabs) {
+            var form = tabs[k].form;
+            if (form != null)
+                n += form.checkRequiredFields();
+        }
+        return n;
+    },
+
+    /**
+    * Reset required fields
+    * @function resetRequiredFields
+    */
+    resetRequiredFields: function () {
+        var tabs = this.tabs.allTabs();
+        for (var k in tabs) {
+            var form = tabs[k].form;
+            if (form != null)
+                form.resetRequiredFields();
+        }
+    },
+
     renderTabForm: function(td) {
         if (td.rendered)
             return;
 
         var k = td.getAttribute("key");
+        var fields = null;
+        if (this.options.tabs!= null && this.options.tabs[k] != null)
+            fields = this.options.tabs[k].fields;
+
         var display = td.clientarea.style.display;
         td.clientarea.style.display = "";
-        td.form.render(td.clientarea, this.options.tabs[k].fields, this.options.tabs[k]);
+        td.form.render(td.clientarea, fields, this.options.tabs[k]);
         td.clientarea.style.display = display;
 
+        scil.apply(this.fields, td.form.fields);
         td.rendered = true;
     },
 

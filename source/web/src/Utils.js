@@ -157,6 +157,13 @@ scilligence.Utils = {
         return e.touches.length == 1 && d <= 500;
     },
 
+    /**
+    * Check if a html element has a parent
+    * @function {static} hasAnsestor
+    * @param {DOM} obj - to be checked child
+    * @param {DOM} parent
+    * @returns a number
+    */
     hasAnsestor: function (obj, parent) {
         if (parent == null || obj == null)
             return false;
@@ -183,6 +190,13 @@ scilligence.Utils = {
         return Math.round(val * d) / d;
     },
 
+    /**
+    * Round a number to significant digits
+    * @function {static} roundToSignificantDigits
+    * @param {number} d - a number to be converted
+    * @param {number} digits
+    * @returns a number
+    */
     roundToSignificantDigits: function (d, digits) {
         if (d == 0 || isNaN(d))
             return d;
@@ -195,6 +209,14 @@ scilligence.Utils = {
         return Math.log(val) / Math.LN10;
     },
 
+    /**
+    * Round a number as string
+    * @function {static} roundStr
+    * @param {number} val - a number to be converted
+    * @param {number} n - the number of decimal
+    * @param {number} padding
+    * @returns a string
+    */
     roundStr: function (val, n, padding) {
         if (val == null || isNaN(val))
             return "";
@@ -205,7 +227,7 @@ scilligence.Utils = {
         var s = (Math.round(val * d) / d) + "";
         if (s == "0" && val != 0 || n > 0 && (Math.abs(val) < 1 / d || val < 1 && s.length < (val + "").length)) { //I#9297
             var e = Math.floor(this.log10(val));
-            if (e < 0) {
+            if (e < 1) {
                 var ret = this.roundStr(val * Math.pow(10, -e), n, padding) + "e" + e;
                 return parseFloat(ret) == parseFloat(s) ? s : ret;
             }
@@ -249,25 +271,49 @@ scilligence.Utils = {
         }
 
         if (Math.abs(val) >= 1000)
-            return this.roundStr(val / 1000, n, padding) + " " + (unit == "g/L" ? "g/mL" : "k" + unit);
+            return this.roundStr(val / 1000, n, padding) + " " + this._convertUnit(unit, 1000);
         if (Math.abs(val) >= 1)
-            return this.roundStr(val, n, padding) + " " + (unit == "g/L" ? "mg/mL" : unit);
+            return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 1);
 
         val *= 1000;
-        if (Math.abs(val) >= 1) {
-            if (unit == "g/L" || unit == "mg/mL")
-                return this.roundStr(val, n, padding) + " ug/mL";
-            else if (unit == "mg/L" || unit == "ug/mL")
-                return this.roundStr(val, n, padding) + " ug/L";
-            else
-                return this.roundStr(val, n, padding) + " m" + unit;
+        if (Math.abs(val) >= 1)
+            return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 0.001);
+
+        val *= 1000;
+        return this.roundStr(val, n, padding) + " " + this._convertUnit(unit, 0.000001);
+    },
+
+    _convertUnit: function (unit, scale) {
+        switch (scale) {
+            case 1:
+                if (unit == "g/L")
+                    return "mg/mL";
+                else if (unit == "U/L")
+                    return "mU/mL";
+                else
+                    return unit;
+            case 1000:
+                if (unit == "g/L")
+                    return "g/mL";
+                else if (unit == "U/L")
+                    return "U/mL";
+                else
+                    return "k" + unit;
+            case 0.001:
+                if (unit == "g/L" || unit == "mg/mL")
+                    return "mg/L";
+                else if (unit == "U/L" || unit == "mU/mL")
+                    return "mU/L";
+                else
+                    return "m" + unit;
+            case 0.000001:
+                if (unit == "g/L" || unit == "mg/mL")
+                    return "ug/L";
+                else if (unit == "U/L" || unit == "mU/mL")
+                    return "uU/L";
+                else
+                    return "u" + unit;
         }
-
-        val *= 1000;
-        if (unit == "g/L" || unit == "mg/mL")
-            return this.roundStr(val, n, padding) + " ug/L";
-        else
-            return this.roundStr(val, n, padding) + " u" + unit;
     },
 
     disabledcontextmenus: [],
@@ -320,6 +366,12 @@ scilligence.Utils = {
         return typeof JSDrawServices != "undefined" && typeof JSDrawServices.url != "undefined" && JSDrawServices.url != null;
     },
 
+    /**
+    * evaluate a javascript expression
+    * @function {static} eval
+    * @param {string} s - javascript expression
+    * @returns javascript object
+    */
     eval: function (s) {
         if (s == "" || typeof (s) != "string")
             return null;
@@ -586,6 +638,10 @@ scilligence.Utils = {
                 var p = s.lastIndexOf('/');
                 var path = p < 0 ? '' : scil.Utils.trim(s.substr(0, p + 1));
                 var file = scil.Utils.trim(p < 0 ? s : s.substr(p + 1)).toLowerCase();
+                p = file.indexOf('?');
+                if (p > 0)
+                    file = file.substr(0, p);
+
                 if (this.startswith(file, "scilligence.jsdraw2.") && this.endswith(file, ".js")) {
                     if (scil.Utils.startswith(path, "http://") || scil.Utils.startswith(path, "https://") || scil.Utils.startswith(path, "//"))
                         return this._scripturl = path;
@@ -807,6 +863,21 @@ scilligence.Utils = {
         return ret;
     },
 
+    escFileName: function (s) {
+        if (s == null)
+            return s;
+
+        var ret = "";
+        for (var i = 0; i < s.length; ++i) {
+            var c = s.substr(i, 1);
+            if (s.charCodeAt(i) > 255 || /[a-z|0-9|_| |\-|\(|\)|\{|\}|\[|\]|\.]/ig.test(c))
+                ret += c;
+            else
+                ret += '_';
+        }
+        return ret;
+    },
+
     getFirstChild: function (parent, tag) {
         if (parent == null)
             return null;
@@ -984,7 +1055,7 @@ scilligence.Utils = {
             iconurl = scil.Utils.imgSrc("img/" + iconurl + ".gif");
         scil.Utils.alertdlg.show(caption);
         scil.Utils.alertdlg.callback = callback;
-        scil.Utils.alertdlg.msg.innerHTML = message == null ? '' : "<pre style='margin:0'>" + message + "</pre>";
+        scil.Utils.alertdlg.msg.innerHTML = message == null ? '' : "<div style='margin:0;max-width:800px;'>" + message + "</div>";
         scil.Utils.alertdlg.img.src = iconurl;
 
         scil.Utils.alertdlg.moveCenter();
@@ -1357,10 +1428,8 @@ scilligence.Utils = {
         if (ret == null) {
             if (scil.Utils.isNullOrEmpty(format)) {
                 format = JSDraw2.defaultoptions.dateformat;
-                if (scil.Utils.isNullOrEmpty(JSDraw2.defaultoptions.dateformat))
+                if (scil.Utils.isNullOrEmpty(format))
                     format = "yyyy-mmm-dd";
-                else
-                    format = JSDraw2.defaultoptions.dateformat;
             }
 
             // if the input is 2014-04-08, this is to fix the timezone issue
@@ -1499,6 +1568,10 @@ scilligence.Utils = {
             else if (button.url)
                 dojo.connect(a, "onclick", function () { if (button.target == null) window.location = button.url; else window.open(button.url, button.target); });
         }
+
+        if (button.key != null)
+            a.setAttribute("key", button.key);
+
         return a;
     },
 
@@ -1521,6 +1594,9 @@ scilligence.Utils = {
     createElement: function (parent, tag, html, styles, attributes, onclick) {
         if (typeof (parent) == "string")
             parent = scil.byId(parent);
+
+        if (attributes != null && attributes.title != null)
+            attributes.title = this.res(attributes.title);
 
         var e = null;
         tag = tag.toLowerCase();
@@ -1720,6 +1796,9 @@ scilligence.Utils = {
     * @returns null
     */
     selectOption: function (select, val, ignorecase) {
+        if (select == null)
+            return;
+
         for (var i = 0; i < select.options.length; ++i) {
             var opt = select.options[i];
             if (this.isEqualStr(opt.value, val + "", ignorecase) || typeof (val) == "boolean" && (val == true && scil.Utils.isTrue(opt.value) || val == false && scil.Utils.isFalse(opt.value))) {
@@ -1950,6 +2029,7 @@ scilligence.Utils = {
     ajax: function (url, callback, params, opts) {
         if (opts == null)
             opts = {};
+
         var xhrArgs = {
             url: url,
             sync: opts.sync,
@@ -1978,7 +2058,27 @@ scilligence.Utils = {
         if (opts.showprogress)
             scil.Progress.show((opts.caption == null ? "Loading ..." : opts.caption), false, (opts.message == null ? "Communicating with the server ..." : opts.message), false);
 
-        dojo.xhrPost(xhrArgs);
+        if (scil.Utils.onajaxcall != null)
+            scil.Utils.onajaxcall(xhrArgs, opts);
+
+        if (opts.headers != null)
+            xhrArgs.headers = opts.headers;
+
+        switch (opts.verb) {
+            case "delete":
+            case "del":
+                dojo.xhrDelete(xhrArgs);
+                break;
+            case "put":
+                dojo.xhrPut(xhrArgs);
+                break;
+            case "get":
+                dojo.xhrGet(xhrArgs);
+                break;
+            default:
+                dojo.xhrPost(xhrArgs);
+                break;
+        }
     },
 
     stupidTomcatBug: function (params) {
@@ -2074,6 +2174,9 @@ scilligence.Utils = {
                 }
             };
 
+            if (scil.Utils.onjsonpcall != null)
+                scil.Utils.onjsonpcall(jsonpArgs);
+
             dojo.io.script.get(jsonpArgs);
         }
     },
@@ -2109,8 +2212,8 @@ scilligence.Utils = {
                 break;
         }
 
-        if (this.onAjaxCallback != null) {
-            if (this.onAjaxCallback(ret))
+        if (scil.Utils.onAjaxCallback != null) {
+            if (scil.Utils.onAjaxCallback(ret))
                 return;
         }
 
@@ -2148,12 +2251,28 @@ scilligence.Utils = {
             else
                 url += "?wrapper=textarea";
         }
+
+        // I#12036
+        if (scil.Utils.___ajaxUploadFile == null) {
+            dojo.config.dojoBlankHtmlUrl = scil.Utils.imgSrc("blank.html");
+            dojo.io.iframe.send({
+                url: dojo.config.dojoBlankHtmlUrl,
+                form: form,
+                method: "get",
+                content: params,
+                timeoutSeconds: 60,
+                preventCache: true,
+                handleAs: "text"
+            });
+            scil.Utils.___ajaxUploadFile == true;
+        }
+
         dojo.io.iframe.send({
             url: url,
             form: form,
             method: "post",
             content: params,
-            timeoutSeconds: 5,
+            timeoutSeconds: 60,
             preventCache: true,
             handleAs: "text",
             error: function (data) {
@@ -2201,6 +2320,7 @@ scilligence.Utils = {
         url: null,
         params: null,
         msg: null,
+        checkfiles: null,
         dlg: null,
         btn: null,
         tbody: null,
@@ -2227,14 +2347,14 @@ scilligence.Utils = {
 
             for (var i = 0; i < n; ++i) {
                 tr = JsUtils.createElement(this.tbody, "tr");
-                JsUtils.createElement(tr, "td", "File:");
+                JsUtils.createElement(tr, "td", scil.Utils.res("File") + ":");
                 this.files[i] = JsUtils.createElement(JsUtils.createElement(tr, "td"), "file", null, null, args);
             }
 
             if (scil.MobileData != null) {
                 var me = this;
                 tr = JsUtils.createElement(this.tbody, "tr");
-                JsUtils.createElement(tr, "td", "<div style='white-space:nowrap'>From Mobile</div>", null, { valign: "top" });
+                JsUtils.createElement(tr, "td", "<div style='white-space:nowrap'>" + scil.Utils.res("From Mobile") + ":</div>", null, { valign: "top" });
                 var td2 = JsUtils.createElement(tr, "td");
                 this.mobileimages = JsUtils.createElement(td2, "hidden", null, null, { name: "mobileimages" });
                 scil.Utils.createButton(td2, { label: "Show", type: "a", onclick: function () { me.showImageList(); } });
@@ -2266,9 +2386,10 @@ scilligence.Utils = {
             }
         },
 
-        show: function (caption, message, url, callback, params, showpassword, postonly) {
+        show: function (caption, message, url, callback, params, showpassword, postonly, checkfiles) {
             this.dlg.show(caption);
             this.postonly = postonly;
+            this.checkfiles = checkfiles;
             if (this.imagelistdiv != null) {
                 this.imagelistdiv.style.display = "none";
                 this.imagelist.clear();
@@ -2276,7 +2397,7 @@ scilligence.Utils = {
 
             var me = this;
             if (this.btn != null) {
-                dojo.connect(this.btn, "onclick", function () { me.show2(); });
+                dojo.connect(this.btn, "onclick", function (e) { me.show2(); e.preventDefault(); });
                 this.btn = null;
             }
 
@@ -2310,7 +2431,20 @@ scilligence.Utils = {
             }
             else {
                 var me = this;
-                scil.Utils.ajaxUploadFile(this.form, this.url, this.params, this.callback);
+                if (this.checkfiles) {
+                    var list = [];
+                    var files = this.files[0].files;
+                    for (var i = 0; i < files.length; ++i)
+                        list.push(files[i].name);
+                    this.checkfiles(list, function (overwrite) {
+                        var args = scil.clone(me.params);
+                        args.overwrite = overwrite;
+                        scil.Utils.ajaxUploadFile(me.form, me.url, args, me.callback);
+                    });
+                }
+                else {
+                    scil.Utils.ajaxUploadFile(me.form, me.url, me.params, me.callback);
+                }
             }
         }
     }),
@@ -2342,21 +2476,23 @@ scilligence.Utils = {
     * @param {dictionary} params - data to be sent
     * @param {bool} chk - reserved
     * @param {bool} multiple - data to be sent
+    * @param {string} showpassword
+    * @param {bool} postonly
     * @returns null
     */
     uploadfileDlg: null,
     uploadfileDlg2: null,
-    uploadFile: function (caption, message, url, callback, params, chk, multiple, showpassword, postonly) {
+    uploadFile: function (caption, message, url, callback, params, chk, multiple, showpassword, postonly, checkfiles) {
         if (multiple) {
             if (this.uploadfileDlg2 == null)
                 this.uploadfileDlg2 = new scil.Utils.UploadFileDlg(true);
-            this.uploadfileDlg2.show(caption, message, url, callback, params, showpassword, postonly);
+            this.uploadfileDlg2.show(caption, message, url, callback, params, showpassword, postonly, checkfiles);
             this.uploadfileDlg2.check = chk;
         }
         else {
             if (this.uploadfileDlg == null)
                 this.uploadfileDlg = new scil.Utils.UploadFileDlg();
-            this.uploadfileDlg.show(caption, message, url, callback, params, showpassword, postonly);
+            this.uploadfileDlg.show(caption, message, url, callback, params, showpassword, postonly, checkfiles);
             this.uploadfileDlg.check = chk;
         }
     },
@@ -2394,20 +2530,28 @@ scilligence.Utils = {
     * @param {dictionary} v - the input jsop object
     * @returns a string
     */
-    json2str: function (v, readable) {
+    json2str: function (v, readable, restrict) {
+        var quot = restrict ? "\"" : "'";
+
         if (v == null)
             return "null";
         if (typeof (v) == "number")
             return v;
         if (typeof (v) == "boolean")
             return v ? "true" : "false";
-        if (typeof (v) == "string")
-            return "'" + v.replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\'/g, "\\'") + "\'";
+        if (typeof (v) == "string") {
+            var s = v.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+            if (quot == "\"")
+                s = s.replace(/\"/g, "\\\"");
+            else
+                s = s.replace(/\'/g, "\\'");
+            return quot + s + quot;
+        }
         if (typeof (v) == "object") {
             if (v.length != null) { // array
                 var s = (readable ? "[ " : "[");
                 for (var i = 0; i < v.length; ++i)
-                    s += (i > 0 ? (readable ? ", " : ",") : "") + this.json2str(v[i], readable);
+                    s += (i > 0 ? (readable ? ", " : ",") : "") + this.json2str(v[i], readable, restrict);
                 s += (readable ? " ]" : "]");
                 return s;
             }
@@ -2425,11 +2569,11 @@ scilligence.Utils = {
                             s += (readable ? ", " : ",");
                     }
 
-                    if (/^[a-z|_]+[0-9|a-z|_]{0,1000}$/.test(k))
+                    if (!restrict && /^[a-z|_]+[0-9|a-z|_]{0,1000}$/.test(k))
                         s += k;
                     else
-                        s += "'" + k + "'";
-                    s += (readable ? ": " : ":") + this.json2str(v[k], readable);
+                        s += quot + k + quot;
+                    s += (readable ? ": " : ":") + this.json2str(v[k], readable, restrict);
                 }
                 s += (readable ? " }" : "}");
                 return s;
@@ -2446,7 +2590,8 @@ scilligence.Utils = {
     },
 
     getMaxZindex2: function (tag) {
-        var zindex = 1;
+        // I#11869
+        var zindex = document.body.className == "mce-fullscreen" ? 101 : 1;
         var list = document.getElementsByTagName(tag);
         for (var i = 0; i < list.length; ++i) {
             if (list[i].style == null || list[i].style.display == "none")
@@ -2586,24 +2731,50 @@ scilligence.Utils = {
     * @param {XmlElement} element
     * @returns a string
     */
-    getInnerXml: function (element) {
-        if (element == null)
+    getInnerXml: function (e) {
+        if (e == null)
             return;
 
-        if (element.innerXML)
-            return element.innerXML;
+        if (e.documentElement != null)
+            e = e.documentElement;
 
-        if (element.xml)
-            return element.xml;
+        if (e.innerXML)
+            return e.innerXML;
 
-        if (typeof XMLSerializer != "undefined")
-            return (new XMLSerializer()).serializeToString(element);
+        if (e.xml)
+            return e.xml;
+
+        if (typeof XMLSerializer != "undefined") {
+            var s = "";
+            for (var i = 0; i < e.childNodes.length; ++i)
+                s += (new XMLSerializer()).serializeToString(e.childNodes[i]);
+            return s;
+        }
 
         return null;
     },
 
     getInnerText: function (e) {
-        return e == null ? null : scil.Utils.trim(e.innerText || e.textContent || e.text);
+        if (e == null)
+            return;
+
+        if (e != null && e.documentElement != null)
+            e = e.documentElement;
+        return scil.Utils.trim(e.innerText || e.textContent || e.text);
+    },
+
+    getChildXmlElements: function (e, tag) {
+        if (e != null && e.documentElement != null)
+            e = e.documentElement;
+        if (e == null)
+            return null;
+
+        var ret = [];
+        for (var i = 0; i < e.childNodes.length; ++i) {
+            if (e.childNodes[i].tagName == tag)
+                ret.push(e.childNodes[i]);
+        }
+        return ret;
     },
 
     num2letter: function (i, lowercase) {
@@ -2656,14 +2827,6 @@ scilligence.Utils = {
             e = e.parentNode;
         }
         return false;
-    },
-
-    isNumber: function (s) {
-        if (typeof (s) == "number")
-            return true;
-        if (s == null || isNaN(s) || isFinite(s))
-            return false;
-        return typeof (s) == "string" && /^[0-9|.]+$/.test(s);
     },
 
     getElements: function (parent, name, ignorecase) {
@@ -2944,10 +3107,21 @@ scilligence.Utils = {
     },
 
     isNumber: function (s, allowoperator) {
+        if (typeof (s) == "number")
+            return true;
         if (scil.Utils.isNullOrEmpty(s))
             return false;
+
+        var p = s.indexOf('.');
+        if (p > 0) {
+            var i = s.indexOf(',');
+            if (i > 0 && i < p)
+                s = s.replace(/[,]/g, '');
+        }
+
+        // I#11086
         if (allowoperator)
-            return new RegExp("^[>|<|≥|≤]?[ ]{0,50}[-]?[0-9]+([\.][0-9]{0,50})?([e|E][-|+][0-9]+)?([ ]{0,50}[±][0-9]+([\.][0-9]{0,50})?)?$").test(s + "");
+            return new RegExp("^[>|<|≥|≤]?[ ]{0,50}[-]?[0-9]+([\.][0-9]{0,50})?([e|E][-|+][0-9]+)?([ ]{0,50}[±][0-9]{0,50}([\.][0-9]{0,50})?)?$").test(s + "");
         else
             return !isNaN(s);
     },
@@ -2973,20 +3147,43 @@ scilligence.Utils = {
         return isNaN(n) ? null : n;
     },
 
+    /**
+    * Test if it is null or empty string
+    * @function {static} isNullOrEmpty
+    * @param {var} s - var to be tested
+    * @returns bool
+    */
     isNullOrEmpty: function (s) {
         return s == null || typeof (s) == "string" && s == "";
     },
 
+    /**
+    * Test if it is not a number
+    * @function {static} isNaN
+    * @param {var} n - var to be tested
+    * @returns bool
+    */
     isNaN: function (n) {
         return n == null || isNaN(n);
     },
 
+    /**
+    * Get outer xml of an XML element
+    * @function {static} getOuterXml
+    * @param {XMLElement} e
+    * @returns a string
+    */
     getOuterXml: function (e) {
         if (e == null)
             return null;
         return e.xml != null ? e.xml : (new XMLSerializer()).serializeToString(e);
     },
 
+    /**
+    * Add css script in a page
+    * @function {static} addCss
+    * @param {string} code - css script
+    */
     addCss: function (code) {
         var style = document.createElement('style');
         style.type = 'text/css';
@@ -3002,6 +3199,13 @@ scilligence.Utils = {
         document.getElementsByTagName("head")[0].appendChild(style);
     },
 
+    /**
+    * Insert all items of a dirctionary in another dictionary
+    * @function {static} insertAfterDict
+    * @param {dict} dict - destination
+    * @param {dict} items - items to be inserted
+    * @param {string} key - reference item
+    */
     insertAfterDict: function (dict, items, key) {
         var found = false;
 
@@ -3023,6 +3227,13 @@ scilligence.Utils = {
             dict[k] = temp[k];
     },
 
+    /**
+    * Insert all items of a dirctionary in another dictionary
+    * @function {static} insertBeforeDict
+    * @param {dict} dict - destination
+    * @param {dict} items - items to be inserted
+    * @param {string} key - reference item
+    */
     insertBeforeDict: function (dict, items, key) {
         var found = false;
 
@@ -3042,8 +3253,21 @@ scilligence.Utils = {
             dict[k] = temp[k];
     },
 
+    disableSelection: function (d) {
+        if (d == null)
+            return;
+
+        scil.apply(d.style, {
+            webkitTouchCallout: "none", /* iOS Safari */
+            webkitUserSelect: "none", /* Chrome */
+            mozUserSelect: "none", /* Firefox */
+            msUserSelect: "none", /* IE/Edge */
+            userSelect: "none"
+        });
+    },
+
     getLastBarcode: function (callback, category, email, url) {
-        scil.Utils.jsonp(url != null ? url : "JSDraw/Service.aspx?cmd=mobile.getlastbarcode", function (ret) {
+        scil.Utils.jsonp(url != null ? url : "JSDraw/Service.aspx?cmd=mobile.getlast", function (ret) {
             callback(ret);
         }, { category: category, useremail: email });
     },
@@ -3084,7 +3308,13 @@ scilligence.Utils = {
         }
     },
 
-    fireEvent: function (element, eventname, bubbles, cancelable) {
+    /**
+    * Fire an event
+    * @function {static} fireEvent
+    * @param {DOM} element
+    * @param {string} eventname
+    */
+    fireEvent: function (element, eventname, bubbles, cancelable, args) {
         var event; // The custom event that will be created
 
         if (document.createEvent) {
@@ -3095,6 +3325,9 @@ scilligence.Utils = {
             event.eventType = eventname;
         }
 
+        if (args != null)
+            scil.apply(event, args);
+
         event.eventName = eventname;
 
         if (document.createEvent) {
@@ -3102,6 +3335,18 @@ scilligence.Utils = {
         } else {
             element.fireEvent("on" + event.eventType, event);
         }
+    },
+
+    sum: function (list) {
+        return scil.Math.sum(list);
+    },
+
+    avg: function (list) {
+        return scil.Math.avg(list);
+    },
+
+    stdev: function (list) {
+        return scil.Math.stdev(list);
     }
 };
 
@@ -3109,3 +3354,4 @@ scil.form = {};
 JsUtils = scil.Utils;
 scil.Utils.padleft = scil.Utils.padLeft;
 scil.Utils.padright = scil.Utils.padRight;
+

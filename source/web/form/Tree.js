@@ -145,6 +145,9 @@ scil.Tree = scil.extend(scil._base, {
             this.expand(parent, true);
         if (item.expand == false)
             this.expand(n, false);
+
+        if (item.selected)
+            this.select(n);
         return n;
     },
 
@@ -183,6 +186,9 @@ scil.Tree = scil.extend(scil._base, {
 
         var f = null;
         var n = bar.parentNode;
+        if (n != null && n.item != null && n.item.leaf)
+            return;
+
         if (this.options.url == null || n.getAttribute("loaded") == "1" || bar.nextSibling != null) {
             f = bar.nextSibling == null || bar.nextSibling.style.display == "none";
             this.expand(n, f);
@@ -236,9 +242,9 @@ scil.Tree = scil.extend(scil._base, {
 
     select: function (node) {
         if (typeof node == "string")
-            node = this.find(node, null);
+            node = this.find(null, node);
 
-        if (node.item != null && node.item.selectable == false)
+        if (node == null || node.item != null && node.item.selectable == false)
             return;
 
         if (node.item != null && node.item._more) {
@@ -273,6 +279,8 @@ scil.Tree = scil.extend(scil._base, {
         var n = this.find(null, value, key);
         if (n != null)
             this.select(n);
+
+        return n;
     },
 
     find: function (parent, value, key) {
