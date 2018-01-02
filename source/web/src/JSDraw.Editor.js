@@ -2108,7 +2108,10 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                     if (connector == "rejector") {
                         if (from.reject != from) {
                             this.pushundo();
-                            from.reject = to;
+                            if (from.reject == to)
+                                from.reject = null;
+                            else
+                                from.reject = to;
                             this.refresh(true);
                             return;
                         }
@@ -3009,11 +3012,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         var modified = false;
         var cloned = this.clone();
         switch (cmd) {
-            //            case "Chiral":                                                                                                       
-            //                this.pushundo();                                                                                                       
-            //                this.m.chiral = !this.m.chiral;                                                                                                       
-            //                this.refresh(true);                                                                                                       
-            //                break;                                                                                                       
+            //            case "Chiral":                                                                                                               
+            //                this.pushundo();                                                                                                               
+            //                this.m.chiral = !this.m.chiral;                                                                                                               
+            //                this.refresh(true);                                                                                                               
+            //                break;                                                                                                               
             case "curveline":
                 obj.setAssayCurveLine(this);
                 break;
@@ -3166,6 +3169,9 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             case "rgroup_addstructure":
                 this.addRgroupStructure(obj);
                 modified = true;
+                break;
+            case "setbracketsubscription":
+                this.setBracketSubscription(obj);
                 break;
             case "setbracketratio":
                 this.setBracketRatio(obj);
@@ -3457,6 +3463,16 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         JSDraw2.needPro();
     },
 
+    setBracketSubscription: function (br) {
+        if (br == null)
+            return;
+
+        var t = this.m.getSgroupText(br, "BRACKET_TYPE");
+        if (t == null)
+            t = br.createSubscript(this.m, "#");
+        this.showTextEditor(t, null, t.text);
+    },
+
     setBracketRatio: function (br) {
         JSDraw2.needPro();
     },
@@ -3488,22 +3504,29 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
     menuSetAtomType: function (cmd, obj) {
         if (cmd == "..." || cmd == "more") {
             var me = this;
-            this.showPT(function (elem) { me.menuSetAtomType2(elem); });
+            this.showPT(function (elem) { me.menuSetAtomType2(elem, obj); });
         }
         else {
-            this.menuSetAtomType2(cmd);
+            this.menuSetAtomType2(cmd, obj);
         }
     },
 
-    menuSetAtomType2: function (elem) {
+    menuSetAtomType2: function (elem, obj) {
         var n = 0;
         var cloned = this.clone();
 
-        var atoms = this.m.allAtoms();
-        for (var i = 0; i < atoms.length; ++i) {
-            var a = atoms[i];
-            if (a.selected && a._parent.setAtomType(atoms[i], elem))
+        var a = JSDraw2.Atom.cast(obj);
+        if (a != null && !a.selected) {
+            if (a._parent.setAtomType(a, elem))
                 ++n;
+        }
+        else {
+            var atoms = this.m.allAtoms();
+            for (var i = 0; i < atoms.length; ++i) {
+                var a = atoms[i];
+                if (a.selected && a._parent.setAtomType(a, elem))
+                    ++n;
+            }
         }
 
         if (n > 0) {
@@ -3982,7 +4005,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             var c = null;
             switch (e.keyCode) {
-                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
                 case 56:
                     c = '*';
                     break;

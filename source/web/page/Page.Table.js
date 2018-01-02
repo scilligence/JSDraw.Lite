@@ -49,7 +49,7 @@ scil.Page.Table = scil.extend(scil._base, {
         scil.Utils.removeAll(this.tablediv);
 
         var me = this;
-        this.table = new scil.Table(true, null, { onAddRow: this.options.onAddRow, selectrow: true, onselectrow: function (tr) { me.selectrow(tr); }, rowcheck: this.options.rowcheck, grouping: this.options.grouping, grouplinestyle: this.options.grouplinestyle });
+        this.table = new scil.Table(true, null, { onAddRow: this.options.onAddRow, selectrow: true, onselectrow: function (tr) { me.selectrow(tr); }, rowcheck: this.options.rowcheck, grouping: this.options.grouping, grouplinestyle: this.options.grouplinestyle, hidecolumncookiekey: this.options.hidecolumncookiekey });
         this.table.render(this.tablediv, this.options.columns);
         this.table.tbody.parentNode.style.width = "100%";
 
@@ -307,6 +307,12 @@ scil.Page.Table = scil.extend(scil._base, {
         if (this.options.candelete != false)
             buttons.push({ src: scil.App.imgSmall("del.png"), label: "Delete", key: "delete", onclick: function () { me.del(); } });
         buttons.push({ src: scil.App.imgSmall("cancel.png"), label: "Cancel", key: "cancel", onclick: function () { me.cancel(); } });
+        if (this.options.editbuttons != null) {
+            if (this.options.editbuttons.length == null)
+                buttons.push(this.options.editbuttons);
+            else
+                buttons = buttons.concat(this.options.editbuttons);
+        }
 
         if (this.options.usetabs) {
             this.dlg = scil.Form.createTabDlgForm(this.options.formcaption, { tabs: this.options.fields, buttons: buttons, border: true, onchange: this.options.onformdatachange });

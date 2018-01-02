@@ -1369,7 +1369,7 @@ scilligence.Utils = {
             tm = scil.Utils.time(tm);
 
         if (JSDraw2.timezoneoffet > 0)
-            tm.setTime(tm.getTime() + JSDraw2.timezoneoffet * 60 * 60 * 1000);
+            tm = new Date(tm.getTime() + JSDraw2.timezoneoffet * 60 * 60 * 1000);
 
         // date part
         var s = format;
@@ -1377,20 +1377,20 @@ scilligence.Utils = {
             s = "yyyy-mmm-dd";
 
         s = s.replace("yyyy", tm.getFullYear())
-                .replace("yy", (tm.getFullYear() + "").substr(2))
-                .replace("mmm", scil.Utils._months[tm.getMonth()])
-                .replace("mm", scil.Utils.padLeft(tm.getMonth() + 1, 2, '0'))
-                .replace("dd", scil.Utils.padLeft(tm.getDate(), 2, '0'));
+            .replace("yy", (tm.getFullYear() + "").substr(2))
+            .replace("mmm", scil.Utils._months[tm.getMonth()])
+            .replace("mm", scil.Utils.padLeft(tm.getMonth() + 1, 2, '0'))
+            .replace("dd", scil.Utils.padLeft(tm.getDate(), 2, '0'));
 
         // time part
-        var h24 = s.indexOf("hh") >= 0;
+        var h12 = s.indexOf("hh") >= 0;
         var h = tm.getHours();
         s = s.replace("hh", this.padLeft(h % 12, 2, '0'))
             .replace("HH", this.padLeft(h, 2, '0'))
             .replace("MM", this.padLeft(tm.getMinutes(), 2, '0'))
             .replace("SS", this.padLeft(tm.getSeconds(), 2, '0'))
             .replace("ss", this.padLeft(tm.getSeconds(), 2, '0'));
-        if (h24)
+        if (h12)
             s += h >= 12 ? "PM" : "AM";
 
         return s;

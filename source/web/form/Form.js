@@ -746,6 +746,11 @@ scil.apply(scil.Form, {
             case "postfile":
                 tag = "file";
                 break;
+            case "user":
+                tag = "input";
+                if (item.autosuggesturl == null)
+                    item.autosuggesturl = "Ajax.ashx?cmd=user.suggest";
+                break;
             default:
                 if (itemtype != null)
                     tag = itemtype;

@@ -1862,6 +1862,8 @@ JSDraw2.Mol = scil.extend(scil._base, {
                 s = "[AND Enantiomer]";
             else if (this.chiral == "or")
                 s = "[OR Enantiomer]";
+            else if (this.chiral == true)
+                s = "Chiral";
 
             if (s != null)
                 JSDraw2.Drawer.drawText(surface, new JSDraw2.Point(dimension.x - fontsize * 4, fontsize * 1), s, "gray", fontsize, "right");
@@ -2098,7 +2100,8 @@ JSDraw2.Mol = scil.extend(scil._base, {
         var natoms = parseFloat(lines[start].substr(0, 3));
         var nbonds = parseFloat(lines[start].substr(3, 3));
         var chiral = lines[start].substr(12, 3);
-        //this.chiral = chiral == "  1";
+        if (!JSDraw2.defaultoptions.and_enantiomer)
+            this.chiral = chiral == "  1";
         if (isNaN(natoms) || isNaN(nbonds))
             return null;
         ++start;
@@ -3238,8 +3241,16 @@ JSDraw2.Mol = scil.extend(scil._base, {
     },
 
     getMolV3000: function (rxn) {
+        var superatoms = [];
+        var m = this.expandSuperAtoms(superatoms);
+        m.chiral = this.chiral;
+        return m._getMolV3000();
+    },
+
+    _getMolV3000: function (rxn) {
         var len = this.bondlength > 0 ? this.bondlength : this.medBondLength();
         var scale = len > 0 ? (1.56 / len) : 1.0;
+
         this.resetIds();
 
         var dt = new Date();

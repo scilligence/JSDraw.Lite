@@ -617,7 +617,7 @@ JSDraw2.FormulaParser = {
         if (m != null)
             return m;
 
-        var tokens = { O: ["O"], S: ["S"], Se: ["Se"], Te: ["Te"], Y: ["Y"], NH: ["N"], PH: ["P"], CO: ["C", "=O"], CO2: ["C", "=O", "O"], CH2: ["C"], C2H4: ["C", "C"], C3H6: ["C", "C", "C"], C4H8: ["C", "C", "C", "C"], C5H10: ["C", "C", "C", "C", "C"] };
+        var tokens = { O: ["O"], S: ["S"], Se: ["Se"], Te: ["Te"], Y: ["Y"], NH: ["N"], PH: ["P"], CO: ["C", "^=O"], CO2: ["C", "^=O", "O"], CH2: ["C"], C2H4: ["C", "C"], C3H6: ["C", "C", "C"], C4H8: ["C", "C", "C", "C"], C5H10: ["C", "C", "C", "C", "C"] };
         if (orphan)
             tokens.H = [];
 
@@ -755,28 +755,43 @@ JSDraw2.FormulaParser = {
 
         var a1 = atts[0].a;
         var a2 = null;
+        var branch = null;
         a1.attachpoints = [];
         for (var i = atoms.length - 1; i >= 0; --i) {
             var c = atoms[i];
-            var doublebond = false;
-            if (c.substr(0, 1) == "=") {
-                c = c.substr(1);
-                doublebond = true;
+
+            if (c.substr(0, 1) == "^") {
+                branch = c.substr(1);
+                continue;
             }
 
-            var p = a1.p.clone();
-            p.offset(1, 0);
-            var a2 = new JSDraw2.Atom(p, c);
-            var b = new JSDraw2.Bond(a1, a2);
-            if (doublebond)
-                b.type = JSDraw2.BONDTYPES.DOUBLE;
-            m.addAtom(a2);
-            m.addBond(b);
-            if (!doublebond)
-                a1 = a2;
+            // I#12074
+            a1 = this._connectAtom(a1, c, m);
+            if (branch != null) {
+                this._connectAtom(a1, branch, m);
+                branch = null;
+            }
         }
 
         a1.attachpoints = [1];
         return m;
+    },
+
+    _connectAtom: function (a1, c, m) {
+        var doublebond = false;
+        if (c.substr(0, 1) == "=") {
+            c = c.substr(1);
+            doublebond = true;
+        }
+
+        var p = a1.p.clone();
+        p.offset(1, 0);
+        var a2 = new JSDraw2.Atom(p, c);
+        var b = new JSDraw2.Bond(a1, a2);
+        if (doublebond)
+            b.type = JSDraw2.BONDTYPES.DOUBLE;
+        m.addAtom(a2);
+        m.addBond(b);
+        return a2;
     }
 };

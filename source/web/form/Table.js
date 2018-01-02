@@ -335,6 +335,7 @@ scil.Table = scil.extend(scil._base, {
                     this.key = id;
             }
         }
+        this._hideCookieCols(this.items);
 
         if (typeof (parent) == "string")
             parent = dojo.byId(parent);
@@ -391,10 +392,10 @@ scil.Table = scil.extend(scil._base, {
 
         for (var id in this.items) {
             var item = this.items[id];
-            var s = item.label;
+            var s = scil.Lang.res(item.label);
             if (item.unit != null && item.unit != "")
-                s += " (" + item.unit + ")";
-            var td = scil.Utils.createElement(r, "td", scil.Lang.res(s), style, { key: id });
+                s += " (" + scil.Lang.res(item.unit) + ")";
+            var td = scil.Utils.createElement(r, "td", s, style, { key: id });
             if (item.width != null)
                 td.style.width = item.width + "px";
             if (item.type == "hidden" || item.ishidden)
@@ -1056,11 +1057,36 @@ scil.Table = scil.extend(scil._base, {
     },
 
     showHideColumns2: function () {
+        var cols = "";
+
         var table = this.showhideDlg.form.fields.table.jsd;
         var list = table.getData(null, null, true);
-        for (var i = 0; i < list.length; ++i)
-            this.showColumn(list[i].key, list[i].rowchecked == true);
+        for (var i = 0; i < list.length; ++i) {
+            var f = list[i].rowchecked == true;
+            this.showColumn(list[i].key, f);
+            if (!f)
+                cols += list[i].key + ",";
+        }
         this.showhideDlg.hide();
+
+        if (!scil.Utils.isNullOrEmpty(this.options.hidecolumncookiekey))
+            scil.Utils.createCookie(this.options.hidecolumncookiekey + "_scil_table_hidecols", cols, 3650); // 10 years
+    },
+
+    _hideCookieCols: function (cols) {
+        if (scil.Utils.isNullOrEmpty(this.options.hidecolumncookiekey))
+            return;
+
+        var s = scil.Utils.readCookie(this.options.hidecolumncookiekey + "_scil_table_hidecols");
+        if (scil.Utils.isNullOrEmpty(s))
+            return;
+
+        var ss = s.split(',');
+        for (var i = 0; i < ss.length; ++i) {
+            var col = cols[ss[i]];
+            if (col != null)
+                cols[ss[i]].ishidden = true;
+        }
     }
 });
 
