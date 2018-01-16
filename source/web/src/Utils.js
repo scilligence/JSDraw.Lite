@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2018 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -1333,10 +1333,8 @@ scilligence.Utils = {
                 var ss = tm.split('-');
                 if (ss.length == 3) {
                     var y = parseInt(ss[0]);
-                    var m = parseInt(ss[1]) - 1;
+                    var m = ss[1].length == 3 ? this._parseMonth(ss[1]) : (parseInt(ss[1]) - 1);
                     var d = parseInt(ss[2]);
-                    if (isNaN(m))
-                        m = scil.Utils.indexOf(this._months, ss[1]);
 
                     if (y > 0 && m >= 0 && m < 12 && d > 0 && d <= 31)
                         return new Date(y, m, d);
@@ -1358,6 +1356,13 @@ scilligence.Utils = {
 
     weekday: function (dt) {
         return this._weekdays[dt.getDay()];
+    },
+
+    _parseMonth: function (s) {
+        if (s == null || s.length != 3)
+            return -1;
+        s = s.substr(0, 1).toUpperCase() + s.substr(1).toLowerCase();
+        return scil.Utils.indexOf(this._months, s);
     },
 
     formatTime: function (tm, format) {

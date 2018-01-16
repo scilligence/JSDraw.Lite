@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2018 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -272,27 +272,51 @@ JSDraw2.Bond = scilligence.extend(scilligence._base, {
         return "black";
     },
 
-    _fmtBondAnn: function (r, ratio) {
-        var s = "";
-
-        if (!scil.Utils.isNullOrEmpty(r) && r != "?" && r != "?:?") {
-            s = r + "";
-            var p = s.indexOf(':');
-            if (p > 0)
-                s = "Pos: " + s.substr(0, p) + "; R#: " + s.substr(p + 1);
+    splitPosR: function (s) {
+        if (!scil.Utils.isNullOrEmpty(s)) {
+            var s2 = s == "?" ? "?:?" : s + "";
+            var p = s2.indexOf(':');
+            if (p >= 0) {
+                var pos = s2.substr(0, p);
+                var r = s2.substr(p + 1);
+                return { pos: (pos == "" ? "?" : pos), r: (r == "" ? "?" : r) };
+            }
         }
 
-        if (!scil.Utils.isNullOrEmpty(ratio))
-            s += (s == "" ? "" : "; ") + "Ratio: " + ratio;
+        return { pos: "?", r: "?" };
+    },
 
-        return s;
+    _fmtBondAnn: function () {
+        var s1 = "";
+        var s2 = "";
+
+        var r1 = this.splitPosR(this.r1);
+        var r2 = this.splitPosR(this.r2);
+        if (r1.pos != "?" || r2.pos != "?") {
+            s1 += (s1 == "" ? "" : "; ") + "Pos: " + r1.pos;
+            s2 += (s2 == "" ? "" : "; ") + "Pos: " + r2.pos;
+        }
+        if (r1.r != "?" || r2.r != "?") {
+            s1 += (s1 == "" ? "" : "; ") + "R#: " + r1.r;
+            s2 += (s2 == "" ? "" : "; ") + "R#: " + r2.r;
+        }
+
+        var defaultratio = org.helm.webeditor.defaultbondratio == null ? "" : org.helm.webeditor.defaultbondratio;
+        var ratio1 = scil.Utils.isNullOrEmpty(this.ratio1) ? defaultratio : this.ratio1;
+        var ratio2 = scil.Utils.isNullOrEmpty(this.ratio2) ? defaultratio : this.ratio2;
+        if (ratio1 != defaultratio || ratio2 != defaultratio /* https://github.com/PistoiaHELM/HELMWebEditor/issues/148 */) {
+            s1 += (s1 == "" ? "" : "; ") + "Ratio: " + ratio1;
+            s2 += (s2 == "" ? "" : "; ") + "Ratio: " + ratio2;
+        }
+
+        return { ba1: s1, ba2: s2 };
     },
 
     drawBondAnnotation: function (surface, fontsize, b) {
-        var ba1 = this._fmtBondAnn(this.r1, this.ratio1);
-        var ba2 = this._fmtBondAnn(this.r2, this.ratio2);
-
-        if (ba1 == "" || ba2 == "")
+        var s = this._fmtBondAnn();
+        var ba1 = s.ba1;
+        var ba2 = s.ba2;
+        if (ba1 == "" && ba2 == "")
             return;
 
         var dx = (b.p1.x - b.p2.x) / 90;

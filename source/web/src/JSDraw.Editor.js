@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2018 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -759,6 +759,9 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
             for (var i = 0; i < tlcplates.length; ++i)
                 this.addTlcPlate(tlcplates[i]);
 
+            if (m.chiral != null)
+                this.m.chiral = m.chiral;
+
             if (empty)
                 this.fitToWindow();
         }
@@ -996,6 +999,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         this.texteditor.ed.input.value = "";
         if (cancel == true)
             return;
+
+        if (this.options.onvalidatetext != null) {
+            if (this.options.onvalidatetext(s, this.texteditor, this) == false)
+                return;
+        }
 
         if (JSDraw2.Symbol != null)
             JSDraw2.Symbol.hide();
@@ -2384,6 +2392,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 if (t != null)
                     this.showTextEditor(t, null, "");
             }
+            else {
+                var t = JSDraw2.Text.cast(this.curObject);
+                if (t != null && t.fieldtype == "BRACKET_TYPE" && t.anchors.length == 1 && JSDraw2.Bracket.cast(t.anchors[0]) != null)
+                    this.showTextEditor(t, null, t.text);
+            }
             return;
         }
 
@@ -3012,11 +3025,11 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
         var modified = false;
         var cloned = this.clone();
         switch (cmd) {
-            //            case "Chiral":                                                                                                               
-            //                this.pushundo();                                                                                                               
-            //                this.m.chiral = !this.m.chiral;                                                                                                               
-            //                this.refresh(true);                                                                                                               
-            //                break;                                                                                                               
+            //            case "Chiral":                                                                                                                       
+            //                this.pushundo();                                                                                                                       
+            //                this.m.chiral = !this.m.chiral;                                                                                                                       
+            //                this.refresh(true);                                                                                                                       
+            //                break;                                                                                                                       
             case "curveline":
                 obj.setAssayCurveLine(this);
                 break;
@@ -4005,7 +4018,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
 
             var c = null;
             switch (e.keyCode) {
-                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+                //case 16: // *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
                 case 56:
                     c = '*';
                     break;

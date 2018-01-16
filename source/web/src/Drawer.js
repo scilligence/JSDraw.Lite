@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2018 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -555,6 +555,25 @@ JSDraw2.Drawer = {
             { x: c.x - d.x, y: c.y + d.y },
             { x: c.x + d.x, y: c.y + d.y },
             { x: r.right(), y: c.y }
+        ];
+        return surface.createPolyline(points).setStroke({ color: color, width: linewidth });
+    },
+
+    drawPentagon: function (surface, r, color, linewidth) {
+        var c = r.center();
+        var p1 = c.clone().offset(0, -r.width / 2);
+        var p2 = p1.clone().rotateAround(c, 72);
+        var p3 = p2.clone().rotateAround(c, 72);
+        var p4 = p3.clone().rotateAround(c, 72);
+        var p5 = p4.clone().rotateAround(c, 72);
+        
+        var points = [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p3.x, y: p3.y },
+            { x: p4.x, y: p4.y },
+            { x: p5.x, y: p5.y },
+            { x: p1.x, y: p1.y },
         ];
         return surface.createPolyline(points).setStroke({ color: color, width: linewidth });
     }
