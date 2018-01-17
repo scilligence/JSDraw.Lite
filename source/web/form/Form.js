@@ -1,7 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////////////////
 //
 // JSDraw.Lite
-// Copyright (C) 2016 Scilligence Corporation
+// Copyright (C) 2018 Scilligence Corporation
 // http://www.scilligence.com/
 //
 // (Released under LGPL 3.0: https://opensource.org/licenses/LGPL-3.0)
@@ -127,7 +127,7 @@ scil.Form = scil.extend(scil._base, {
     * @param {dictonary} data the form data, *id* is the key
     */
     setData: function (data, overwritemode) {
-        this.dirty = false;
+        this.setDirty(false);
         for (var id in this.fields) {
             var field = this.fields[id];
             if (field == null)
@@ -153,6 +153,7 @@ scil.Form = scil.extend(scil._base, {
                 scil.Form.setFieldData(field, this.items[id], this.viewonly, v, data);
             }
         }
+        this.setDirty(false);
     },
 
     /**
@@ -178,6 +179,25 @@ scil.Form = scil.extend(scil._base, {
         this.dirty = true;
         if (this.options.onchange != null)
             this.options.onchange(field, this, args);
+    },
+
+    setDirty: function (f) {
+        this.dirty = f == null || f == true ? true : false;
+    },
+
+    preventUnsaved: function (msg) {
+        var me = this;
+        scil.connect(window, "onbeforeunload", function (e) {
+            if (me.dirty) {
+                if (msg == null)
+                    msg = "WARNING: Form data are not saved yet.";
+
+                var s = scil.Lang.res(msg);
+                if (e != null)
+                    e.returnValue = s;
+                return s;
+            }
+        });
     },
 
     switchForm: function (key) {
