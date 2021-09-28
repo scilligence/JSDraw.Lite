@@ -2665,7 +2665,7 @@ JSDraw2.Mol = scil.extend(scil._base, {
     getRgfile: function (rxn, rgroups, superatoms) {
         return null;
     },
-
+	
     _getRgroups: function (rgroups) {
         if (rgroups == null)
             rgroups = { n: 0, list: [] };
@@ -2673,8 +2673,13 @@ JSDraw2.Mol = scil.extend(scil._base, {
         for (var i = 0; i < this.atoms.length; ++i) {
             var a = this.atoms[i];
             a.iR = null;
-            if (a.elem == "R" && (a.alias != null && a.alias != "" || a.rgroup != null)) {
-                a.iR = ++rgroups.n;
+            if (a.elem == "R") {
+                if (a.alias != null && a.alias.length > 0 && a.alias[0] === 'R') {
+                    a.iR = parseInt(a.alias.split('R')[1]);
+                    rgroups.n = Math.max(a.iR, rgroups.n);
+                } else {
+                    a.iR = ++rgroups.n;
+                }
                 if (a.rgroup != null && a.rgroup.mols.length > 0)
                     rgroups.list.push(a);
             }
