@@ -332,7 +332,7 @@ JSDraw2.Toolbar = scil.extend(scil._base, {
                 });
             }
 
-            buttons.push({ c: "chargep", t: "Increase charges", label: "Charge", sub: [{ c: "chargen", t: "Descrease charges", label: "Charge"}] });
+            buttons.push({ c: "chargep", t: "Increase charges", label: "Charge", sub: [{ c: "chargen", t: "Decrease charges", label: "Charge"}] });
 
             if (this.options.rxn && JSDraw2.Security.kEdition != "Lite") {
                 buttons.push({ c: "|" });
