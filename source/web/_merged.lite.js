@@ -20037,7 +20037,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 if (this.options.helmtoolbar)
                     fileformats = { helm: "HELM", xhelm: "xHELM" };
                 else
-                    fileformats = { mol: "Mol File", smiles: "SMILES" };
+                    fileformats = { mol: "Mol File" };
             }
             else if (jsd.options.tlcplate)
                 fileformats = JSDraw2.JSDrawIO.jsdFiles2;
@@ -20060,7 +20060,7 @@ JSDraw2.Editor = scilligence.extend(scilligence._base, {
                 if (this.options.helmtoolbar)
                     fileformats = { helm: "HELM", xhelm: "xHELM" };
                 else
-                    fileformats = { mol: "Mol File", smiles: "SMILES" };
+                    fileformats = { mol: "Mol File" };
             }
             else if (jsd.options.tlcplate)
                 fileformats = JSDraw2.JSDrawIO.jsdFiles2;
