@@ -13236,9 +13236,7 @@ JSDraw2.Toolbar = scil.extend(scil._base, {
                 buttons.push({ c: "|" });
 
             if (!this.options.appmode) {
-                selecttools.push({ c: "copy", t: "Copy", label: "Copy" });
                 selecttools.push({ c: "cut", t: "Cut", label: "Cut" });
-                selecttools.push({ c: "paste", t: "Paste", label: "Paste" });
             }
 
             buttons.push({ c: "select", t: "Box Selection", label: "Box", sub: selecttools });
